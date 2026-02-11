@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">pod-chive</string>
+    <string name="title_activity_play_pod">playPod</string>
+</resources>
