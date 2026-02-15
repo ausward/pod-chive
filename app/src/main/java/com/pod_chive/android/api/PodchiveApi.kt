@@ -19,6 +19,17 @@ data class Podcast(
     val itunesAuthor: String?
 )
 
+data class homeList(
+    val podcasts: List<homeItem>
+)
+data class homeItem(
+    val podcast_title:String,
+    val description:String,
+    val rss_url:String,
+    val html_summary_location:String,
+    val output_directory: String
+)
+
 interface PodchiveApi {
     @Headers("accept: application/json")
     @GET("search_podcasts")
@@ -26,6 +37,10 @@ interface PodchiveApi {
         @Query("term") term: String,
         @Query("format") format: String = "json"
     ): PodchiveResponse
+
+    @GET("list_podcasts")
+    suspend fun listPodcasts(): homeList
+
 }
 
 object RetrofitClient {
