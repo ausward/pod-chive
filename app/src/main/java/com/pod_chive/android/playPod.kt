@@ -3,11 +3,17 @@ package com.pod_chive.android
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.graphics.drawable.Drawable
+import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,7 +22,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +46,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -51,24 +68,29 @@ import kotlinx.coroutines.delay
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-@kotlin.OptIn(ExperimentalGlideComposeApi::class)
+@ExperimentalGlideComposeApi
+@OptIn(ExperimentalGlideComposeApi::class, ExperimentalGlideComposeApi::class,
+    ExperimentalGlideComposeApi::class
+)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun PlayPod() {
     Column {
         AudioPlayer(
             audioUrl = "https://pod-chive.com/1A/1A_Presents_Milk_Streets_Holiday_Lollapalooza_The_Best_of_2024.mp3",
-            title = "1A Presents: Milk Street's Holiday Lollapalooza",
-            photoUrl = "https://pod-chive.com/1A/cover.webp"
+            title = "Milk Street's Holiday Lollapalooza",
+            photoUrl = "https://pod-chive.com/1A/cover.webp",
+            creator = "1A"
         )
     }
 }
 
-@androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class)
 @ExperimentalGlideComposeApi
 @Composable
 fun AudioPlayer(
     audioUrl: String,
+    creator:String,
     title: String,
     photoUrl: String
 ) {
@@ -78,6 +100,9 @@ fun AudioPlayer(
     var mediaController by remember { mutableStateOf<MediaController?>(null) }
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
+    var isDragging by remember { mutableStateOf(false) }
+    var sliderPosition by remember { mutableFloatStateOf(0f) }
+
 
 
     DisposableEffect(context) {
@@ -122,43 +147,64 @@ fun AudioPlayer(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = title,
-            color = Color.White,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
 
+    Box(modifier = Modifier
+        .width(250.dp)
+        .height(250.dp)) {
         GlideImage(
             model = photoUrl,
             contentDescription = "Album art for $title",
             modifier = Modifier
-                .size(300.dp)
+                .aspectRatio(1f)
                 .clip(RoundedCornerShape(12.dp)),
             loading = placeholder(R.mipmap.ic_launcher),
             contentScale = ContentScale.Crop
         )
+        }
+//        Spacer(modifier = Modifier.height(29.dp))
+        Text(
+            textDecoration = TextDecoration.Underline,
+            softWrap = true,
+            text = title,
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+        Text(
+                text = creator,
+        color = Color.LightGray,
+        style = MaterialTheme.typography.bodySmall,
 
-        Spacer(modifier = Modifier.height(24.dp))
+        )
+//        Spacer(modifier = Modifier.height(24.dp))
 
         // Progress Slider
-        Slider(
-            value = if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f,
-            onValueChange = {
-                mediaController?.seekTo((it * duration).toLong())
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = formatDuration(currentPosition), color = Color.White)
-            Text(text = formatDuration(duration), color = Color.White)
+
+        Column(modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ){
+            val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+
+            Slider(
+                value = if (isDragging) sliderPosition else progress.coerceIn(0f, 1f),
+                onValueChange = {
+                    isDragging = true
+                    sliderPosition = it
+                },
+                onValueChangeFinished = {
+                    mediaController?.seekTo((sliderPosition * duration).toLong())
+                    isDragging = false
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(formatDuration(currentPosition), color = Color.Gray, fontSize = 12.sp)
+                Text(formatDuration(duration), color = Color.Gray, fontSize = 12.sp)
+            }
         }
-
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         // Controls
         Row(
@@ -176,14 +222,14 @@ fun AudioPlayer(
                 modifier = Modifier.size(64.dp)
             ) {
                 Icon(
-                    imageVector = Drawable(R.drawable.replay_10_24px),
+                    painter = painterResource(id = R.drawable.replay_10_24px),
                     contentDescription = "Rewind 10 seconds",
                     tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+//            Spacer(modifier = Modifier.width(16.dp))
 
             IconButton(
                 onClick = {
@@ -199,15 +245,19 @@ fun AudioPlayer(
                 },
                 modifier = Modifier.size(64.dp)
             ) {
+                var id = R.drawable.play_arrow_24px
+                if (isPlaying) {
+                    id = R.drawable.outline_pause_24
+                }
                 Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    painter = painterResource(id = id),
                     contentDescription = if (isPlaying) "Pause" else "Play",
                     tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+//            Spacer(modifier = Modifier.width(16.dp))
 
             IconButton(
                 onClick = {
@@ -219,46 +269,85 @@ fun AudioPlayer(
                 modifier = Modifier.size(64.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Forward30,
+                    painter = painterResource(id = R.drawable.outline_forward_30_24),
                     contentDescription = "Forward 30 seconds",
                     tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(16.dp))
-            IconButton(
-                onClick = {
-                    mediaController?.stop()
-                },
-                modifier = Modifier.size(64.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Stop,
-                    contentDescription = "Stop",
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
+//            Spacer(modifier = Modifier.width(16.dp))
+
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+//        Spacer(modifier = Modifier.height(32.dp))
+        Row(
+            modifier = Modifier.background(Color.hsl(248.7F, 1F, .27f)).border(width = 3.dp, color = Color.White, shape =  RoundedCornerShape(3.dp)).padding(12.dp)
+        ){
+            IconButton(
+                onClick = {
+                    if (playbackSpeed > 0.5f){
+                        playbackSpeed -= 0.25f
+                    mediaController?.setPlaybackSpeed(playbackSpeed)
+                }
+                },
+                modifier = Modifier.size(64.dp)
+            ) { Icon(Icons.Filled.ArrowDownward,
+                contentDescription = "Slower",
+                tint = Color.White)}
+            // Speed Control
+            Column(modifier = Modifier.clickable(
+                enabled = true,
 
-        // Speed Control
-        Text(
-            text = String.format(Locale.US, "Speed: %.2fx", playbackSpeed),
-            color = Color.Gray
-        )
-        Slider(
-            value = playbackSpeed,
-            onValueChange = {
-                playbackSpeed = it
-                mediaController?.setPlaybackSpeed(it)
-            },
-            valueRange = 0.5f..2.0f,
-            steps = 5,
-            modifier = Modifier.fillMaxWidth()
-        )
+                onClick = {
+                    playbackSpeed = 1f; mediaController?.setPlaybackSpeed(
+                    playbackSpeed
+                )
+                }).padding(vertical = 8.dp)) {
+                Text(
+                    text = String.format(Locale.US, "Speed:" ),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge,
+
+                    )
+                Text(
+                    text = String.format(Locale.US, "%.2fx", playbackSpeed),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge,
+
+                    )
+            }
+            IconButton(
+                onClick = {
+                    playbackSpeed = updateSpeedOnButtonPress(playbackSpeed)
+                    mediaController?.setPlaybackSpeed(playbackSpeed)
+                } ,
+                modifier = Modifier.size(64.dp),
+            ){
+                Icon(Icons.Rounded.ArrowUpward,
+                    contentDescription = "Faster",
+                    tint = Color.White)
+            }
+//            Slider(
+//                value = playbackSpeed,
+//                onValueChange = {
+//                    playbackSpeed = it
+//                    mediaController?.setPlaybackSpeed(it)
+//                },
+//                valueRange = 0.5f..3.0f,
+//                steps = 10,
+//                modifier = Modifier.fillMaxWidth()
+//            )
+        }
     }
+}
+
+
+private fun updateSpeedOnButtonPress(playbackSpeed: Float): Float  {
+//    if (playbackSpeed < 3.5f) {
+        if (playbackSpeed >= 1.5f)
+        { return playbackSpeed + 0.25f}
+        return playbackSpeed + 0.10f
+//    } else { return 0.25f}
 }
 
 private fun formatDuration(ms: Long): String {
