@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -32,6 +33,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -45,21 +48,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
@@ -69,18 +77,42 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @ExperimentalGlideComposeApi
-@OptIn(ExperimentalGlideComposeApi::class, ExperimentalGlideComposeApi::class,
-    ExperimentalGlideComposeApi::class
-)
+@OptIn(ExperimentalGlideComposeApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun PlayPod() {
+fun PlayPod(
+navController: NavController) {
+    // Default values if none provided (for testing or if navigating directly to the tab)
+    var finalAudioUrl  by remember {mutableStateOf( " ")}// audioUrl ?: "https://pod-chive.com/1A/1A_Presents_Milk_Streets_Holiday_Lollapalooza_The_Best_of_2024.mp3"
+    var finalTitle by remember{mutableStateOf( " ")} //title ?: "Milk Street's Holiday Lollapalooza"
+    var finalPhotoUrl by remember { mutableStateOf( " ") } //= photoUrl ?: "https://pod-chive.com/1A/cover.webp"
+    var finalCreator  by remember { mutableStateOf(" ") }//= creator ?: "1A"
+    var controller by remember { mutableStateOf<MediaController?>(null) }
+    val context = LocalContext.current
+
+
+
+    LaunchedEffect(Unit) {
+        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+
+        controllerFuture.addListener({
+            val pc = controllerFuture.get()
+            controller = pc
+
+            // Pull the metadata that was set in EpisodeRow
+            finalTitle = pc.mediaMetadata.title?.toString() ?: "Unknown Title"
+            finalCreator = pc.mediaMetadata.artist?.toString() ?: "Unknown Creator"
+            finalPhotoUrl = pc.mediaMetadata.artworkUri?.toString() ?: ""
+        }, MoreExecutors.directExecutor())
+    }
+
     Column {
         AudioPlayer(
-            audioUrl = "https://pod-chive.com/1A/1A_Presents_Milk_Streets_Holiday_Lollapalooza_The_Best_of_2024.mp3",
-            title = "Milk Street's Holiday Lollapalooza",
-            photoUrl = "https://pod-chive.com/1A/cover.webp",
-            creator = "1A"
+            audioUrl = finalAudioUrl,
+            title = finalTitle,
+            photoUrl = finalPhotoUrl,
+            creator = finalCreator
         )
     }
 }
@@ -88,7 +120,7 @@ fun PlayPod() {
 @OptIn(UnstableApi::class)
 @ExperimentalGlideComposeApi
 @Composable
-fun AudioPlayer(
+fun AudioPlayerOld(
     audioUrl: String,
     creator:String,
     title: String,
@@ -105,40 +137,6 @@ fun AudioPlayer(
 
 
 
-    DisposableEffect(context) {
-        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-        controllerFuture.addListener(
-            {
-                mediaController = controllerFuture.get()
-            }, MoreExecutors.directExecutor()
-        )
-
-        onDispose {
-            mediaController?.release()
-        }
-    }
-
-    DisposableEffect(mediaController) {
-        val listener = object : Player.Listener {
-            override fun onIsPlayingChanged(isPlayingChanged: Boolean) {
-                isPlaying = isPlayingChanged
-            }
-        }
-        mediaController?.addListener(listener)
-
-        onDispose {
-            mediaController?.removeListener(listener)
-        }
-    }
-
-    LaunchedEffect(mediaController, isPlaying) {
-        while (true) {
-            currentPosition = mediaController?.currentPosition ?: 0L
-            duration = mediaController?.duration?.takeIf { it > 0 } ?: 0L
-            delay(500)
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -340,7 +338,202 @@ fun AudioPlayer(
         }
     }
 }
+@OptIn(UnstableApi::class)
+@ExperimentalGlideComposeApi
+@Composable
+fun AudioPlayer(
+    audioUrl: String, // This acts as a fallback or "new play" target
+    creator: String,
+    title: String,
+    photoUrl: String
+) {
+    val context = LocalContext.current
+    var mediaController by remember { mutableStateOf<MediaController?>(null) }
 
+    // UI State driven by the Controller
+    var isPlaying by remember { mutableStateOf(false) }
+    var currentPosition by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
+    var playbackSpeed by remember { mutableFloatStateOf(1f) }
+
+    // Slider State
+    var isDragging by remember { mutableStateOf(false) }
+    var sliderPosition by remember { mutableFloatStateOf(0f) }
+
+    // 1. Setup the connection to the persistent service
+    LaunchedEffect(Unit) {
+        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+
+        controllerFuture.addListener({
+            val controller = controllerFuture.get()
+            mediaController = controller
+
+            // Sync initial state
+            isPlaying = controller.isPlaying
+            duration = controller.duration.coerceAtLeast(0L)
+            playbackSpeed = controller.playbackParameters.speed
+
+            // Setup a listener to update the UI in real-time
+            controller.addListener(object : Player.Listener {
+                override fun onIsPlayingChanged(playing: Boolean) {
+                    isPlaying = playing
+                }
+                override fun onPlaybackParametersChanged(params: PlaybackParameters) {
+                    playbackSpeed = params.speed
+                }
+                override fun onEvents(player: Player, events: Player.Events) {
+                    duration = player.duration.coerceAtLeast(0L)
+                }
+            })
+        }, MoreExecutors.directExecutor())
+    }
+
+    // 2. The Progress Ticker (Updates every second)
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            currentPosition = mediaController?.currentPosition ?: 0L
+            delay(1000)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF0F0F0F)) // Deep charcoal/black
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // --- Artwork ---
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .shadow(20.dp, RoundedCornerShape(16.dp))
+        ) {
+            GlideImage(
+                model = photoUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(16.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // --- Info ---
+        Text(
+            text = title,
+            color = Color.White,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 2
+        )
+        Text(
+            text = creator,
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // --- Progress Slider ---
+        val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+
+        Slider(
+            value = if (isDragging) sliderPosition else progress.coerceIn(0f, 1f),
+            onValueChange = {
+                isDragging = true
+                sliderPosition = it
+            },
+            onValueChangeFinished = {
+                mediaController?.seekTo((sliderPosition * duration).toLong())
+                isDragging = false
+            },
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary
+            ), valueRange = 0f..1f
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(formatDuration(currentPosition), color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+            Text(formatDuration(duration), color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // --- Controls ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { mediaController?.seekBack() }) {
+                Icon(painterResource(R.drawable.replay_10_24px), null, tint = Color.White, modifier = Modifier.size(36.dp))
+            }
+
+            // Big Play/Pause Button
+            Surface(
+                onClick = {
+                    mediaController?.let {
+                        if (it.isPlaying) it.pause() else it.play()
+                    }
+                },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(72.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        painter = painterResource(if (isPlaying) R.drawable.outline_pause_24 else R.drawable.play_arrow_24px),
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
+            IconButton(onClick = { mediaController?.seekForward() }) {
+                Icon(painterResource(R.drawable.outline_forward_30_24), null, tint = Color.White, modifier = Modifier.size(36.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // --- Speed Controls ---
+        Surface(
+            color = Color(0xFF1E1E1E),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { if (playbackSpeed > 0.5f) mediaController?.setPlaybackSpeed(playbackSpeed - 0.25f) }) {
+                    Icon(Icons.Filled.ArrowDownward, null, tint = Color.White)
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clickable { mediaController?.setPlaybackSpeed(1.0f) }
+                ) {
+                    Text("SPEED", color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+                    Text(String.format(Locale.US, "%.2fx", playbackSpeed), color = Color.White, fontWeight = FontWeight.Bold)
+                }
+
+                IconButton(onClick = { if (playbackSpeed < 3.0f) mediaController?.setPlaybackSpeed(playbackSpeed + 0.25f) }) {
+                    Icon(Icons.Rounded.ArrowUpward, null, tint = Color.White)
+                }
+            }
+        }
+    }
+}
 
 private fun updateSpeedOnButtonPress(playbackSpeed: Float): Float  {
 //    if (playbackSpeed < 3.5f) {

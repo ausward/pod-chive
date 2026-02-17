@@ -5,6 +5,14 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.Query
+import android.content.Context
+import com.google.gson.annotations.SerializedName
+import okhttp3.Cache
+import okhttp3.OkHttpClient
+import retrofit2.http.Path
+import java.io.File
+import android.os.Parcelable
+
 
 data class PodchiveResponse(
     val results: List<Podcast>
@@ -30,6 +38,40 @@ data class homeItem(
     val output_directory: String
 )
 
+
+// python based api.pod-chive.com client
+
+
+object RetrofitClient {
+    private const val BASE_URL = "https://api.pod-chive.com/"
+    private var apiInstance: PodchiveApi? = null
+
+    fun getInstance(context: Context): PodchiveApi {
+        return apiInstance ?: synchronized(this) {
+            val cacheSize = (10 * 1024 * 1024).toLong() // 10 MB
+            val cacheDir = File(context.cacheDir, "http_cache")
+            val myCache = Cache(cacheDir, cacheSize)
+
+            val okHttpClient = OkHttpClient.Builder()
+                .cache(myCache)
+                // Optional: Add an interceptor here if the API doesn't
+                // provide Cache-Control headers (see below)
+                .build()
+
+            val instance = Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .client(okHttpClient)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+                .create(PodchiveApi::class.java)
+
+            apiInstance = instance
+            instance
+        }
+    }
+}
+
+
 interface PodchiveApi {
     @Headers("accept: application/json")
     @GET("search_podcasts")
@@ -43,14 +85,62 @@ interface PodchiveApi {
 
 }
 
-object RetrofitClient {
-    private const val BASE_URL = "https://api.pod-chive.com/"
 
-    val instance: PodchiveApi by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(PodchiveApi::class.java)
+
+// pod-chive.com nginx details
+
+object RetrofitClientFront {
+    private const val BASE_URL = "https://pod-chive.com/"
+    private var apiInstance: PodchiveFront? = null
+
+    fun getInstance(context: Context): PodchiveFront {
+        return apiInstance ?: synchronized(this) {
+            val cacheSize = (10 * 1024 * 1024).toLong() // 10 MB
+            val cacheDir = File(context.cacheDir, "http_cache2")
+            val myCache = Cache(cacheDir, cacheSize)
+
+            val okHttpClient = OkHttpClient.Builder()
+                .cache(myCache)
+                .build()
+
+            val instance = Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .client(okHttpClient)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+                .create(PodchiveFront::class.java)
+
+            apiInstance = instance
+            instance
+        }
     }
 }
+
+interface PodchiveFront {
+
+    @GET("{path}/out.json")
+    suspend fun getPodDetails(@Path("path") path: String): PodcastDetailResponse
+
+}
+
+
+
+
+data class PodcastDetailResponse(
+    @SerializedName("PodcastTitle")
+    val podcastTitle: String,
+
+    @SerializedName("Episodes")
+    val episodes: List<Episode>
+)
+
+data class Episode(
+    @SerializedName("Title")
+    val title: String,
+
+    @SerializedName("description") // This one was lowercase in your sample
+    val description: String?,
+
+    @SerializedName("AudioFilePath")
+    val audioFilePath: String
+)

@@ -78,6 +78,7 @@ fun PodSearchBar(onSearch: (String) -> Unit) {
 
 @Composable
 fun findPod(SearchString: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var podcasts by rememberSaveable { mutableStateOf<List<Podcast>>(emptyList()) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var isLoading by rememberSaveable { mutableStateOf(false) }
@@ -86,7 +87,7 @@ fun findPod(SearchString: String) {
         if (SearchString.isBlank()) return@LaunchedEffect
         isLoading = true
         try {
-            val response = RetrofitClient.instance.searchPodcasts(term = SearchString)
+            val response = RetrofitClient.getInstance(context).searchPodcasts(term = SearchString)
             podcasts = response.results
             errorMessage = null
         } catch (e: Exception) {
@@ -130,7 +131,7 @@ fun PodcastItem(podcast: Podcast) {
             modifier = Modifier
                 .width(80.dp)
                 .height(80.dp),
-            loading = placeholder(R.mipmap.ic_launcher)
+            loading = placeholder(R.mipmap.shrug)
         )
         Column(modifier = Modifier.padding(start = 12.dp)) {
             Text(
