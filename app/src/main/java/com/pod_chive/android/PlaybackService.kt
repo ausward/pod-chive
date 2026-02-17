@@ -11,6 +11,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import android.app.PendingIntent
 
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
@@ -74,7 +75,16 @@ class PlaybackService : MediaSessionService() {
             }
         }
 
+        val sessionIntent = packageManager.getLaunchIntentForPackage(packageName)!! // Force non-nullable
+        val sessionPendingIntent: PendingIntent = PendingIntent.getActivity( // Now this can be non-nullable
+            this,
+            0,
+            sessionIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
         mediaSession = MediaSession.Builder(this, player)
+            .setSessionActivity(sessionPendingIntent) // Pass the non-nullable PendingIntent
             .setCallback(callback)
             .build()
     }

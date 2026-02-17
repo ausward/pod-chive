@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.parcelize)
+    id("org.jetbrains.kotlin.plugin.serialization")
 
 
 }
@@ -48,7 +48,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-extended")
-    
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.androidx.media3.exoplayer)
@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.unit)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.ui.text)
+    implementation(libs.androidx.compose.foundation.layout)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -68,4 +69,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("com.github.bumptech.glide:compose:1.0.0-beta01")
     implementation("androidx.navigation:navigation-common:2.9.7")
+    implementation("com.prof18.rssparser:rssparser:6.1.0")
 }

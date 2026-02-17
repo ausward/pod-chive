@@ -11,12 +11,11 @@ import okhttp3.Cache
 import okhttp3.OkHttpClient
 import retrofit2.http.Path
 import java.io.File
-import android.os.Parcelable
-
+import java.io.Serializable
 
 data class PodchiveResponse(
     val results: List<Podcast>
-)
+) : Serializable
 
 data class Podcast(
     val id: Int,
@@ -25,17 +24,21 @@ data class Podcast(
     val description: String?,
     val imageUrl: String?,
     val itunesAuthor: String?
-)
+) : Serializable
+
 
 data class homeList(
     val podcasts: List<homeItem>
-)
+) : Serializable
+
+@kotlinx.serialization.Serializable
 data class homeItem(
     val podcast_title:String,
     val description:String,
     val rss_url:String,
     val html_summary_location:String,
-    val output_directory: String
+    val output_directory: String,
+    val cover_image_url: String? = null // New field for direct image URL
 )
 
 
@@ -132,7 +135,7 @@ data class PodcastDetailResponse(
 
     @SerializedName("Episodes")
     val episodes: List<Episode>
-)
+) : Serializable
 
 data class Episode(
     @SerializedName("Title")
@@ -143,4 +146,4 @@ data class Episode(
 
     @SerializedName("AudioFilePath")
     val audioFilePath: String
-)
+) : Serializable

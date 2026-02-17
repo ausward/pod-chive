@@ -30,8 +30,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.toRoute
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
-
+import com.pod_chive.android.api.PodcastDetailResponse
+import com.pod_chive.android.api.RssFeedResult
+import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.ui.theme.PodchiveTheme
 
 
@@ -79,10 +82,15 @@ class MainActivity : ComponentActivity() {
                                 HomePage(navController)
                             }
                             composable("search") {
-                                var searchQuery by rememberSaveable { mutableStateOf("Verge") }
+                                var searchQuery by rememberSaveable { mutableStateOf("") }
                                 Column {
                                     PodSearchBar(onSearch = { searchQuery = it })
-                                    findPod(searchQuery)
+                                    if (searchQuery == "") {
+                                        HomePage(navController)
+                                    } else {
+                                        findPod(searchQuery, navController)
+
+                                    }
                                 }
                             }
                             composable(
@@ -104,6 +112,25 @@ class MainActivity : ComponentActivity() {
                                 val title = backStackEntry.arguments?.getString("podcastTitle") ?: ""
                                 showPodDetsFromMainServer(title, navController)
                             }
+                            composable<homeItem>{ backStackEntry ->
+
+                                val Dets: homeItem = backStackEntry.toRoute()
+                                showPodDetsFromRSS(Dets, navController  )
+
+
+
+                            }
+//                            composable(
+//                                route = "podcast_detail_from_search/{type}/{identifier}",
+//                                arguments = listOf(
+//                                    navArgument("type") { type = NavType.StringType },
+//                                    navArgument("identifier") { type = NavType.StringType }
+//                                )
+//                            ) { backStackEntry ->
+//                                val type = backStackEntry.arguments?.getString("type") ?: ""
+//                                val identifier = Uri.decode(backStackEntry.arguments?.getString("identifier") ?: "")
+//                                PodcastDetailScreen(type, identifier, navController)
+//                            }
                         }
                     }
                 }

@@ -4,7 +4,9 @@ package com.pod_chive.android
 import androidx.media3.session.MediaController
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
 import android.content.ComponentName
 import android.net.Uri
 import android.util.Log
@@ -12,7 +14,9 @@ import android.widget.TextView
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -31,21 +36,22 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ViewQuilt
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ViewComfyAlt
 import androidx.compose.material.icons.filled.ViewDay
-import androidx.compose.material.icons.filled.ViewQuilt
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,9 +62,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.session.SessionToken
@@ -72,18 +79,16 @@ import com.pod_chive.android.api.PodcastDetailResponse
 import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.homeItem
-import java.lang.System.console
-
-
+import com.pod_chive.android.ui.theme.PodchiveTheme
 
 
 @Composable
 fun HomePage(navController: NavController ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     var isloading by rememberSaveable { mutableStateOf(false) }
-    var podcasts by rememberSaveable { mutableStateOf<List<homeItem>>(emptyList()) }
+    var podcasts by rememberSaveable() { mutableStateOf<ArrayList<homeItem>>(arrayListOf()) }
     var error: String = ""
-    var grid by rememberSaveable { mutableStateOf(true) }
+    var grid by rememberSaveable(){ mutableStateOf(false) }
 
 
     LaunchedEffect(key1 = true) {
@@ -91,7 +96,7 @@ fun HomePage(navController: NavController ) {
         try {
             val res = RetrofitClient.getInstance(context = context ).listPodcasts()
 
-            podcasts = res.podcasts
+            podcasts = ArrayList(res.podcasts)
         } catch (e: Exception) {
             error = e.message.toString()
         } finally {
@@ -205,11 +210,25 @@ fun MainPodGridItem(podcast: homeItem, onItemClick: () -> Unit) {
 }
 
 
+@OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 fun showPodDetsFromMainServer(directory: String, navController: NavController) {
     val context = LocalContext.current
     var podcastData by remember { mutableStateOf<PodcastDetailResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+
+
+
+    val scrollState = rememberScrollState()
+    val showStickyTitle = scrollState.value > 320
+    // 2. Calculate dynamic size
+    // Base size is 250dp, it will shrink as scrollState.value increases
+    val maxImageSize = 250f
+    val minImageSize = 80f
+    val scrollThreshold = 500f // How fast it shrinks
+
+    val currentImageSize = (maxImageSize - (scrollState.value / 2))
+        .coerceAtLeast(minImageSize).dp
 
     LaunchedEffect(directory) {
         try {
@@ -222,65 +241,126 @@ fun showPodDetsFromMainServer(directory: String, navController: NavController) {
     }
 
     if (isLoading) {
-        CircularProgressIndicator()
+        Box(contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(Modifier.size(600.dp))
+        }
     } else {
-        podcastData?.let { data ->
-            LazyColumn {
-                item {
-                    Text(text = data.podcastTitle, style = MaterialTheme.typography.headlineLarge)
-                }
-                items(data.episodes) { episode ->
-                    EpisodeRow(episode, directory, data.podcastTitle, navController)
-                    HorizontalDivider( color = Color.Black, thickness = 3.dp)
+        PodchiveTheme(dynamicColor = false) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState) // Standard Column scrolling
+        ) {
+            // --- Shinking Header ---
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                GlideImage(
+                    model = "https://pod-chive.com/$directory/cover.webp",
+                    contentDescription = "Cover",
+                    modifier = Modifier
+                        .size(currentImageSize) // Dynamic size applied here
+                        .clip(MaterialTheme.shapes.medium),
+                    loading = placeholder(R.mipmap.shrug),
+                    failure = placeholder(R.mipmap.shrug)
+                )
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = podcastData?.podcastTitle ?: " ",
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- Episode List ---
+            // Since we aren't in a LazyColumn, we use a simple forEach
+            podcastData?.episodes?.forEach { episode ->
+                EpisodeRow(
+                    episode,
+                    directory,
+                    podcastData?.podcastTitle,
+                    navController,
+                    PlaybackState.STOPPED
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.tertiary,
+                    thickness = 1.dp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+        }
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = if (showStickyTitle) MaterialTheme.colorScheme.surface else Color.Transparent,
+                tonalElevation = if (showStickyTitle) 4.dp else 0.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .statusBarsPadding() // Handles the notch/status bar area
+                        .height(64.dp)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    if (showStickyTitle) {
+                        Text(
+                            text = podcastData?.podcastTitle ?: "",
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-//@OptIn(ExperimentalGlideComposeApi::class)
-//@Composable
-//fun EpisodeRow(episode: Episode, directory: String) {
-//
-//    Row(modifier = Modifier.padding(top =16.dp)) {
-//            GlideImage(
-//                model = "https://pod-chive.com/" + directory + "/cover.webp",
-//                contentDescription = "Cover",
-//                Modifier.size(width = 80.dp, height = 80.dp).clip(MaterialTheme.shapes.medium).align(Alignment.CenterVertically),
-//
-//                )
-//            Column(Modifier.padding(horizontal = 4.dp)) {
-//            Text(text = episode.title, fontWeight = FontWeight.Bold)
-//                HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray, thickness = 1.dp)
-//
-//                Text(text = episode.description ?: "", maxLines = 4, fontSize = 12.sp)
-//        }
-//
-//    }
-//}
-
+enum class PlaybackState { PLAYING, PAUSED, STOPPED }
 
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-fun EpisodeRow(episode: Episode, directory: String, podcastTitle: String, navController: NavController) {
-    // State to track if the dialog is open
+fun EpisodeRow(
+    episode: Episode,
+    directory: String? = null,
+    podcastTitle: String?,
+    navController: NavController,
+    playbackState: PlaybackState,
+    AudioUrl: String? = null,
+    PhotoUrl: String? = null
+) {
     var showDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
-
-    // This is your live connection to the music player
     var controller by remember { mutableStateOf<MediaController?>(null) }
 
-    // This stays the same - it connects to your background PlaybackService
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         controllerFuture.addListener({
             controller = controllerFuture.get() as MediaController?
         }, MoreExecutors.directExecutor())
+
+        onDispose {
+            controller?.release()
+            controller = null
+        }
     }
 
-    // 1. The Popup (AlertDialog)
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -293,7 +373,6 @@ fun EpisodeRow(episode: Episode, directory: String, podcastTitle: String, navCon
                 Text(text = episode.title, style = MaterialTheme.typography.titleLarge)
             },
             text = {
-                // Allows the HTML content to scroll if it's longer than the screen
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     HtmlText(html = episode.description ?: "No description available.")
                 }
@@ -301,57 +380,48 @@ fun EpisodeRow(episode: Episode, directory: String, podcastTitle: String, navCon
         )
     }
 
-    // 2. The Row UI
     Row(
         modifier = Modifier
-            .padding(top = 16.dp, start = 8.dp, end = 8.dp)
-            .clickable { showDialog = true } // Open popup on click
+            .fillMaxWidth()
+            .clickable { showDialog = true }
+            .padding(vertical = 8.dp, horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        GlideImage(
-            model = "https://pod-chive.com/$directory/cover.webp",
-            contentDescription = "Cover",
-            modifier = Modifier
-                .size(80.dp)
-                .clip(MaterialTheme.shapes.medium)
-                .align(Alignment.CenterVertically),
-            loading = placeholder(R.mipmap.shrug),
-            failure = placeholder(R.mipmap.shrug)
-        )
 
-        Column(modifier = Modifier.padding(horizontal = 8.dp).weight(1f)) {
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = episode.title,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
 
-            // Fixed Divider: Removed .weight(1f)
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 4.dp),
-                color = Color.LightGray,
-                thickness = 1.dp
-            )
+            Spacer(modifier = Modifier.height(4.dp))
 
             HtmlText(
                 html = episode.description ?: "No description available.",
-                maxLines = 3
+                maxLines = 3,
             )
-            
         }
-        Button(
-            onClick = {
-                val audioUrl = "https://pod-chive.com/${episode.audioFilePath}"
-                val photoUrl = "https://pod-chive.com/$directory/cover.webp"
-                val encodedAudioUrl = Uri.encode(audioUrl)
-                val encodedTitle = Uri.encode(episode.title)
-                val encodedPhotoUrl = Uri.encode(photoUrl)
-                val encodedCreator = Uri.encode(podcastTitle)
 
-                Log.d("EpisodeRow", "Audio URL: $audioUrl")
-                Log.d("EpisodeRow", "Photo URL: $photoUrl")
+        Spacer(modifier = Modifier.width(8.dp))
+        var audioUrl: String = ""
+        var photoUrl = ""
+        IconButton(
+            onClick = {
+                if (directory != null) {
+                      audioUrl = "https://pod-chive.com/${episode.audioFilePath}"
+                      photoUrl = "https://pod-chive.com/$directory/cover.webp"
+                } else {
+                     audioUrl = AudioUrl!!
+                     photoUrl = PhotoUrl!!
+
+                }
+
                 val player = controller!!
 
-                // 2. Create the MediaItem with Metadata (for lock screen/notifications)
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(audioUrl)
                     .setUri(Uri.parse(audioUrl))
@@ -364,24 +434,27 @@ fun EpisodeRow(episode: Episode, directory: String, podcastTitle: String, navCon
                     )
                     .build()
 
-                // 3. Command the service to play
                 player.setMediaItem(mediaItem)
                 player.prepare()
                 player.play()
-//                navController.navigate("playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator")
-            }
+            },
+            modifier = Modifier.size(48.dp)
         ) {
-            Text(text = "Play")
+            PodchiveTheme(dynamicColor = false) {
+                Icon(
+                    imageVector = if (playbackState == PlaybackState.PLAYING) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (playbackState == PlaybackState.PLAYING) "Pause episode" else "Play episode",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
         }
     }
 }
 
-
-
-
-
 @Composable
 fun HtmlText(html: String, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) {
+    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     AndroidView(
         modifier = modifier,
         factory = { context ->
@@ -389,6 +462,7 @@ fun HtmlText(html: String, modifier: Modifier = Modifier, maxLines: Int = Int.MA
                 this.maxLines = maxLines
                 // Optional: Adjust text size or color to match your theme
                 textSize = 16f
+                setTextColor(textColor)
             }
         },
         update = { it.text = HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_COMPACT) }

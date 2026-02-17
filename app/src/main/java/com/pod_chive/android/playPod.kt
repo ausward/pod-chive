@@ -2,14 +2,12 @@ package com.pod_chive.android
 
 import android.annotation.SuppressLint
 import android.content.ComponentName
-import android.graphics.drawable.Drawable
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,11 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.rounded.Add
+
 import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +32,6 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -50,15 +44,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
@@ -89,6 +80,8 @@ navController: NavController) {
     var finalCreator  by remember { mutableStateOf(" ") }//= creator ?: "1A"
     var controller by remember { mutableStateOf<MediaController?>(null) }
     val context = LocalContext.current
+
+//    BackHandler() {navController.popBackStack() }
 
 
 
@@ -325,16 +318,7 @@ fun AudioPlayerOld(
                     contentDescription = "Faster",
                     tint = Color.White)
             }
-//            Slider(
-//                value = playbackSpeed,
-//                onValueChange = {
-//                    playbackSpeed = it
-//                    mediaController?.setPlaybackSpeed(it)
-//                },
-//                valueRange = 0.5f..3.0f,
-//                steps = 10,
-//                modifier = Modifier.fillMaxWidth()
-//            )
+
         }
     }
 }
@@ -420,7 +404,7 @@ fun AudioPlayer(
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+//        Spacer(modifier = Modifier.height(32.dp))
 
         // --- Info ---
         Text(
@@ -438,7 +422,7 @@ fun AudioPlayer(
             modifier = Modifier.padding(top = 4.dp)
         )
 
-        Spacer(modifier = Modifier.weight(1f))
+//        Spacer(modifier = Modifier.weight(1f))
 
         // --- Progress Slider ---
         val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
@@ -463,7 +447,7 @@ fun AudioPlayer(
             Text(formatDuration(duration), color = Color.Gray, style = MaterialTheme.typography.labelSmall)
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+//        Spacer(modifier = Modifier.height(24.dp))
 
         // --- Controls ---
         Row(
