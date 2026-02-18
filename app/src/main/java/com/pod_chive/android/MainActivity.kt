@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -52,9 +53,9 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
                 var selectedItem by rememberSaveable { mutableStateOf(0) }
-                val items = listOf("Home", "Search", "Play")
-                val routes = listOf("home", "search", "playpod") // Match these to your NavHost routes
-                val icons = listOf(Icons.Filled.Home, Icons.Filled.Search, Icons.Filled.PlayArrow)
+                val items = listOf("Home", "Search", "Play", "Favorites")
+                val routes = listOf("home", "search", "playpod", "favorites") // Match these to your NavHost routes
+                val icons = listOf(Icons.Filled.Home, Icons.Filled.Search, Icons.Filled.PlayArrow, Icons.Filled.Favorite)
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -138,6 +139,9 @@ class MainActivity : ComponentActivity() {
 
 
 
+                            }
+                            composable("favorites") {
+                                FavoritesScreen(navController)
                             }
 
                         }

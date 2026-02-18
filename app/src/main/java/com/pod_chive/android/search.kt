@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,14 +56,14 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.pod_chive.android.api.Episode
-import com.pod_chive.android.api.PodcastDetailResponse
 import com.pod_chive.android.api.RetrofitClient
-import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.api.RssDataSource
 import com.pod_chive.android.api.RssFeedResult
-import com.pod_chive.android.api.homeList
 import com.pod_chive.android.ui.theme.PodchiveTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.io.Serializable // For SearchResultType
 
 
@@ -279,6 +281,7 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     val scrollState = rememberScrollState()
     val showStickyTitle = scrollState.value > 320
+    var isFavorite by remember { mutableStateOf(false) }
     // 2. Calculate dynamic size
     // Base size is 250dp, it will shrink as scrollState.value increases
     val maxImageSize = 250f
@@ -292,6 +295,7 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
 
     LaunchedEffect(homeitems) {
         try {
+
             when (val result = RssDataSource.parseRssFeed(homeitems.rss_url)) {
                 is RssFeedResult.Success -> {
                     epData = result.episodes
@@ -300,6 +304,8 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                         "PodchiveAPI",
                         "result: ${result.podcast.podcast_title} ${result.episodes?.size}"
                     )
+                    val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
+                    isFavorite = repository.isFavorite(podcastData?.rss_url)
                     if (!result.episodes.isNullOrEmpty()) {
                         Log.d("PodchiveAPI", "Episodes: ${result.episodes.size}")
                         searchResults =
@@ -366,9 +372,7 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                 // --- Episode List ---
                 // Since we aren't in a LazyColumn, we use a simple forEach
                 epData?.forEach { episode ->
-                    PodchiveTheme(dynamicColor = false) {
                     EpisodeRow(
-
                         episode,
                         null,
                         podcastData?.podcast_title,
@@ -382,8 +386,6 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                         thickness = 1.dp,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-
-                }
                 }
             }
             Surface(
@@ -412,7 +414,41 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                             style = MaterialTheme.typography.titleLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(start = 8.dp)
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .weight(1f)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+
+                    IconButton(onClick = {
+                        val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
+                        GlobalScope.launch(Dispatchers.IO) {
+                            if (isFavorite) {
+                                val favorite = repository.getFavoriteByFeedLink(podcastData?.rss_url)
+                                if (favorite != null) {
+                                    repository.deleteFavorite(favorite)
+                                }
+                            } else {
+
+                                    repository.insertFavorite(
+                                        com.pod_chive.android.database.FavoritePodcast(
+                                            feedLink = podcastData?.rss_url ?: "",
+                                            imageLocation = podcastData?.cover_image_url ?: "",
+                                            description = podcastData?.description ?: "",
+                                            title = podcastData?.podcast_title ?: ""
+                                        )
+                                    )
+
+                            }
+                            isFavorite = !isFavorite
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

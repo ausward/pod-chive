@@ -14,7 +14,6 @@ import android.widget.TextView
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,9 +36,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ViewComfyAlt
 import androidx.compose.material.icons.filled.ViewDay
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -80,6 +80,9 @@ import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.ui.theme.PodchiveTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -216,6 +219,7 @@ fun showPodDetsFromMainServer(directory: String, navController: NavController) {
     val context = LocalContext.current
     var podcastData by remember { mutableStateOf<PodcastDetailResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var isFavorite by remember { mutableStateOf(false) }
 
 
 
@@ -233,6 +237,9 @@ fun showPodDetsFromMainServer(directory: String, navController: NavController) {
     LaunchedEffect(directory) {
         try {
             podcastData = RetrofitClientFront.getInstance(context).getPodDetails(directory)
+            // Check if it's already favorited
+            val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
+            isFavorite = repository.isFavorite(directory)
         } catch (e: Exception) {
             // Handle error
         } finally {
@@ -322,7 +329,39 @@ fun showPodDetsFromMainServer(directory: String, navController: NavController) {
                             style = MaterialTheme.typography.titleLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(start = 8.dp)
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .weight(1f)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+
+                    IconButton(onClick = {
+                        val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
+                        GlobalScope.launch(Dispatchers.IO) {
+                            if (isFavorite) {
+                                val favorite = repository.getFavoriteByFeedLink(directory)
+                                if (favorite != null) {
+                                    repository.deleteFavorite(favorite)
+                                }
+                            } else {
+                                repository.insertFavorite(
+                                    com.pod_chive.android.database.FavoritePodcast(
+                                        feedLink = directory,
+                                        imageLocation = "https://pod-chive.com/$directory/cover.webp",
+                                        description = "",
+                                        title = podcastData?.podcastTitle ?: ""
+                                    )
+                                )
+                            }
+                            isFavorite = !isFavorite
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -410,18 +449,23 @@ fun EpisodeRow(
         var audioUrl: String = ""
         var photoUrl = ""
         IconButton(
+            enabled = controller != null,
             onClick = {
-                if (directory != null) {
-                      audioUrl = "https://pod-chive.com/${episode.audioFilePath}"
-                      photoUrl = "https://pod-chive.com/$directory/cover.webp"
-                } else {
-                     audioUrl = AudioUrl!!
-                     photoUrl = PhotoUrl!!
+                Log.d("LINK", "Clicked play button")
+                if (controller == null) return@IconButton
 
+                if (directory != null) {
+                    audioUrl = "https://pod-chive.com/${episode.audioFilePath}"
+                    photoUrl = "https://pod-chive.com/$directory/cover.webp"
+                } else {
+                    audioUrl = AudioUrl ?: return@IconButton
+                    photoUrl = PhotoUrl ?: return@IconButton
                 }
 
-                val player = controller!!
+                Log.d("LINK", "Playing audio URL: $audioUrl")
 
+                val player = controller ?: return@IconButton
+    Log.e("LINK", AudioUrl?: "Audio URL is null")
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(audioUrl)
                     .setUri(Uri.parse(audioUrl))

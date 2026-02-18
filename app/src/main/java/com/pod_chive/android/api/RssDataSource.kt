@@ -14,10 +14,10 @@ object RssDataSource {
     suspend fun parseRssFeed(rssFeedUrl: String): RssFeedResult {
         return try {
             val channel = parser.getRssChannel(rssFeedUrl)
-            Log.d("RssDataSource", "Channel: $channel")
+//            Log.d("RssDataSource", "Channel: $channel")
             val homeItem = channel.toHomeItem(rssFeedUrl)
             val episodes = channel.items?.mapNotNull { it.toEpisode() }
-        Log.d("RssDataSource", "Episodes: $episodes")
+//        Log.d("RssDataSource", "Episodes: $episodes")
             RssFeedResult.Success(homeItem, episodes)
         } catch (e: Exception) {
             RssFeedResult.Error(e.localizedMessage ?: "Unknown error parsing RSS feed")
@@ -36,7 +36,7 @@ object RssDataSource {
             output_directory = "",
             cover_image_url = imageUrl
         )
-        Log.d("RssDataSource", "HomeItem: $temp")
+//        Log.d("RssDataSource", "HomeItem: $temp")
         return temp
     }
 
@@ -50,7 +50,7 @@ object RssDataSource {
             description = this.content ?: this.description, // Prioritize content:encoded
             audioFilePath = audioUrl
         )
-        Log.d("RssDataSource", "Episode: $temp")
+//        Log.d("RssDataSource", "Episode: $temp")
         return temp
     }
 }
