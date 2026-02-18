@@ -146,6 +146,9 @@ class MainActivity : ComponentActivity() {
                             composable("queue") {
                                 com.pod_chive.android.queue.PlayQueueScreen(navController)
                             }
+                            composable("debug_playback") {
+                                PlaybackDebugScreen(navController)
+                            }
 
                         }
                     }

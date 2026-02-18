@@ -33,6 +33,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -272,6 +273,30 @@ fun AudioPlayer(
     var isDragging by remember { mutableStateOf(false) }
     var sliderPosition by remember { mutableFloatStateOf(0f) }
 
+    // Save state when leaving this screen
+    DisposableEffect(Unit) {
+        onDispose {
+            // Save current playback state when navigating away
+            mediaController?.let { controller ->
+                val playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(context)
+                val currentMediaItem = controller.currentMediaItem
+                currentMediaItem?.let { mediaItem ->
+                    val state = com.pod_chive.android.playback.PlaybackState(
+                        audioUrl = mediaItem.mediaId,
+                        title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
+                        creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
+                        photoUrl = mediaItem.mediaMetadata.artworkUri?.toString() ?: "",
+                        currentPosition = controller.currentPosition.coerceAtLeast(0),
+                        duration = controller.duration.coerceAtLeast(0),
+                        playbackSpeed = playbackSpeed
+                    )
+                    playbackStateManager.savePlaybackState(state)
+                    android.util.Log.d("PLAYBACK", "PlayPod dispose: Saved state on navigate away with speed: ${playbackSpeed}x")
+                }
+            }
+        }
+    }
+
     // 1. Setup the connection to the persistent service
     LaunchedEffect(Unit) {
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
@@ -288,13 +313,49 @@ fun AudioPlayer(
 
             // Try to restore playback position from saved state
             val playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(context)
-            val savedState = playbackStateManager.getPlaybackState(audioUrl)
-            if (savedState != null && savedState.currentPosition > 0) {
-                // Only restore if the saved position is reasonable (not at the very end)
-                if (savedState.currentPosition < savedState.duration * 0.95) {
-                    controller.seekTo(savedState.currentPosition)
-                    android.util.Log.d("PLAYBACK", "Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms")
+            android.util.Log.d("PLAYBACK", "AudioPlayer: Looking for saved state for URL: $audioUrl")
+
+            var savedState = playbackStateManager.getPlaybackState(audioUrl)
+
+            // If not found and URL contains encoded characters, try to find a match
+            if (savedState == null && audioUrl.contains("%")) {
+                android.util.Log.d("PLAYBACK", "URL is encoded, searching for decoded match...")
+                val decodedUrl = try {
+                    android.net.Uri.decode(audioUrl)
+                } catch (e: Exception) {
+                    audioUrl
                 }
+                savedState = playbackStateManager.getPlaybackState(decodedUrl)
+                if (savedState != null) {
+                    android.util.Log.d("PLAYBACK", "Found state using decoded URL")
+                }
+            }
+
+            // If still not found, search all states for matching audio URL
+            if (savedState == null) {
+                android.util.Log.d("PLAYBACK", "Searching all saved states for any match...")
+                val allStates = playbackStateManager.getAllPlaybackStates()
+                savedState = allStates.values.firstOrNull {
+                    it.audioUrl == audioUrl ||
+                    android.net.Uri.decode(it.audioUrl) == audioUrl ||
+                    android.net.Uri.decode(it.audioUrl) == android.net.Uri.decode(audioUrl)
+                }
+                if (savedState != null) {
+                    android.util.Log.d("PLAYBACK", "Found matching state in all states")
+                }
+            }
+
+            if (savedState != null) {
+                android.util.Log.d("PLAYBACK", "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms")
+                // Only restore if the saved position is reasonable (not at the very end)
+                if (savedState.currentPosition > 0 && savedState.currentPosition < savedState.duration * 0.95) {
+                    controller.seekTo(savedState.currentPosition)
+                    android.util.Log.d("PLAYBACK", "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms")
+                } else {
+                    android.util.Log.d("PLAYBACK", "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms")
+                }
+            } else {
+                android.util.Log.d("PLAYBACK", "✗ No saved state found for: $audioUrl")
             }
 
             // Setup a listener to update the UI in real-time
@@ -320,6 +381,31 @@ fun AudioPlayer(
         }
     }
 
+    // Save speed change when user adjusts playback speed
+    LaunchedEffect(playbackSpeed) {
+        mediaController?.let { controller ->
+            val playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(context)
+            val currentMediaItem = controller.currentMediaItem
+            currentMediaItem?.let { mediaItem ->
+                try {
+                    val state = com.pod_chive.android.playback.PlaybackState(
+                        audioUrl = mediaItem.mediaId,
+                        title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
+                        creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
+                        photoUrl = mediaItem.mediaMetadata.artworkUri?.toString() ?: "",
+                        currentPosition = controller.currentPosition.coerceAtLeast(0),
+                        duration = controller.duration.coerceAtLeast(0),
+                        playbackSpeed = playbackSpeed
+                    )
+                    playbackStateManager.savePlaybackState(state)
+                    android.util.Log.d("PLAYBACK", "Saved speed change: ${playbackSpeed}x")
+                } catch (e: Exception) {
+                    android.util.Log.e("PLAYBACK", "Error saving speed: ${e.message}")
+                }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -340,6 +426,16 @@ fun AudioPlayer(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
+            IconButton(onClick = {
+                navController.navigate("debug_playback")
+            }) {
+                Icon(
+                    painter = painterResource(R.drawable.outline_forward_30_24),
+                    contentDescription = "Debug",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             IconButton(onClick = {
                 navController.navigate("queue")
             }) {

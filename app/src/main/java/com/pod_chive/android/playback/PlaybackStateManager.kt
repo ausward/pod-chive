@@ -15,6 +15,7 @@ data class PlaybackState(
     val photoUrl: String,
     val currentPosition: Long,
     val duration: Long,
+    val playbackSpeed: Float = 1.0f,
     val lastPlayedAt: Long = System.currentTimeMillis()
 )
 
