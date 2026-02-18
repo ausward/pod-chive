@@ -437,6 +437,14 @@ fun EpisodeRow(
                 player.setMediaItem(mediaItem)
                 player.prepare()
                 player.play()
+
+                val encodedAudioUrl = Uri.encode(audioUrl)
+                val encodedTitle = Uri.encode(episode.title)
+                val encodedPhotoUrl = Uri.encode(photoUrl)
+                val encodedCreator = Uri.encode(podcastTitle ?: "")
+                navController.navigate(
+                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator"
+                )
             },
             modifier = Modifier.size(48.dp)
         ) {

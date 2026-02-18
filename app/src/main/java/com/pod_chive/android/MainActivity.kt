@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
@@ -47,6 +49,8 @@ class MainActivity : ComponentActivity() {
             PodchiveTheme {
                 // 1. Initialize the NavController here
                 val navController = rememberNavController()
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
                 var selectedItem by rememberSaveable { mutableStateOf(0) }
                 val items = listOf("Home", "Search", "Play")
                 val routes = listOf("home", "search", "playpod") // Match these to your NavHost routes
@@ -55,22 +59,30 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     bottomBar = {
-                        NavigationBar {
-                            items.forEachIndexed { index, item ->
-                                NavigationBarItem(
-                                    icon = { Icon(icons[index], contentDescription = item) },
-                                    label = { Text(item) },
-                                    selected = selectedItem == index,
-                                    onClick = {
-                                        selectedItem = index
-                                        // 2. Navigate to the route when clicked
-                                        navController.navigate(routes[index]) {
-                                            // Pop up to the start destination to avoid building up a huge stack
-                                            popUpTo(navController.graph.startDestinationId)
-                                            launchSingleTop = true
+                        Column {
+                            if (currentRoute?.startsWith("playpod") != true) {
+                                Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 4.dp) {
+                                    MiniPlayerControls()
+                                }
+                            }
+
+                            NavigationBar {
+                                items.forEachIndexed { index, item ->
+                                    NavigationBarItem(
+                                        icon = { Icon(icons[index], contentDescription = item) },
+                                        label = { Text(item) },
+                                        selected = selectedItem == index,
+                                        onClick = {
+                                            selectedItem = index
+                                            // 2. Navigate to the route when clicked
+                                            navController.navigate(routes[index]) {
+                                                // Pop up to the start destination to avoid building up a huge stack
+                                                popUpTo(navController.graph.startDestinationId)
+                                                launchSingleTop = true
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -106,7 +118,13 @@ class MainActivity : ComponentActivity() {
                                 val title = backStackEntry.arguments?.getString("title")
                                 val photoUrl = backStackEntry.arguments?.getString("photoUrl")
                                 val creator = backStackEntry.arguments?.getString("creator")
-                                PlayPod(navController)
+                                PlayPod(
+                                    navController = navController,
+                                    audioUrl = audioUrl,
+                                    title = title,
+                                    photoUrl = photoUrl,
+                                    creator = creator
+                                )
                             }
                             composable("details/{podcastTitle}") { backStackEntry ->
                                 val title = backStackEntry.arguments?.getString("podcastTitle") ?: ""
@@ -115,22 +133,13 @@ class MainActivity : ComponentActivity() {
                             composable<homeItem>{ backStackEntry ->
 
                                 val Dets: homeItem = backStackEntry.toRoute()
+
                                 showPodDetsFromRSS(Dets, navController  )
 
 
 
                             }
-//                            composable(
-//                                route = "podcast_detail_from_search/{type}/{identifier}",
-//                                arguments = listOf(
-//                                    navArgument("type") { type = NavType.StringType },
-//                                    navArgument("identifier") { type = NavType.StringType }
-//                                )
-//                            ) { backStackEntry ->
-//                                val type = backStackEntry.arguments?.getString("type") ?: ""
-//                                val identifier = Uri.decode(backStackEntry.arguments?.getString("identifier") ?: "")
-//                                PodcastDetailScreen(type, identifier, navController)
-//                            }
+
                         }
                     }
                 }
