@@ -7,25 +7,23 @@ import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.sharp.PlaylistPlay
 import androidx.compose.material.icons.filled.ArrowDownward
-
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,20 +39,22 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -68,6 +68,7 @@ import com.bumptech.glide.integration.compose.placeholder
 import com.google.common.util.concurrent.MoreExecutors
 import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -128,7 +129,8 @@ fun PlayPod(
             audioUrl = finalAudioUrl,
             title = finalTitle,
             photoUrl = finalPhotoUrl,
-            creator = finalCreator
+            creator = finalCreator,
+            navController = navController
         )
         // MiniPlayerControls()
     }
@@ -249,225 +251,15 @@ fun MiniPlayerControls() {
 @OptIn(UnstableApi::class)
 @ExperimentalGlideComposeApi
 @Composable
-fun AudioPlayerOld(
-    audioUrl: String,
-    creator:String,
-    title: String,
-    photoUrl: String
-) {
-    val context = LocalContext.current
-    var isPlaying by remember { mutableStateOf(false) }
-    var playbackSpeed by remember { mutableFloatStateOf(1f) }
-    var mediaController by remember { mutableStateOf<MediaController?>(null) }
-    var currentPosition by remember { mutableLongStateOf(0L) }
-    var duration by remember { mutableLongStateOf(0L) }
-    var isDragging by remember { mutableStateOf(false) }
-    var sliderPosition by remember { mutableFloatStateOf(0f) }
-
-
-
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-
-    Box(modifier = Modifier
-        .width(250.dp)
-        .height(250.dp)) {
-        GlideImage(
-            model = photoUrl,
-            contentDescription = "Album art for $title",
-            modifier = Modifier
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp)),
-            loading = placeholder(R.mipmap.ic_launcher),
-            contentScale = ContentScale.Crop
-        )
-        }
-//        Spacer(modifier = Modifier.height(29.dp))
-        Text(
-            textDecoration = TextDecoration.Underline,
-            softWrap = true,
-            text = title,
-            color = Color.White,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
-        Text(
-                text = creator,
-        color = Color.LightGray,
-        style = MaterialTheme.typography.bodySmall,
-
-        )
-//        Spacer(modifier = Modifier.height(24.dp))
-
-        // Progress Slider
-
-        Column(modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ){
-            val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
-
-            Slider(
-                value = if (isDragging) sliderPosition else progress.coerceIn(0f, 1f),
-                onValueChange = {
-                    isDragging = true
-                    sliderPosition = it
-                },
-                onValueChangeFinished = {
-                    mediaController?.seekTo((sliderPosition * duration).toLong())
-                    isDragging = false
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(formatDuration(currentPosition), color = Color.Gray, fontSize = 12.sp)
-                Text(formatDuration(duration), color = Color.Gray, fontSize = 12.sp)
-            }
-        }
-
-        // Controls
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = {
-                    mediaController?.let {
-                        val newPosition = (it.currentPosition - 10000).coerceAtLeast(0)
-                        it.seekTo(newPosition)
-                    }
-                },
-                modifier = Modifier.size(64.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.replay_10_24px),
-                    contentDescription = "Rewind 10 seconds",
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
-
-//            Spacer(modifier = Modifier.width(16.dp))
-
-            IconButton(
-                onClick = {
-                    mediaController?.let {
-                        if (it.isPlaying) it.pause() else {
-                            if (it.mediaItemCount == 0) {
-                                it.setMediaItem(MediaItem.fromUri(audioUrl))
-                                it.prepare()
-                            }
-                            it.play()
-                        }
-                    }
-                },
-                modifier = Modifier.size(64.dp)
-            ) {
-                var id = R.drawable.play_arrow_24px
-                if (isPlaying) {
-                    id = R.drawable.outline_pause_24
-                }
-                Icon(
-                    painter = painterResource(id = id),
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
-
-//            Spacer(modifier = Modifier.width(16.dp))
-
-            IconButton(
-                onClick = {
-                    mediaController?.let {
-                        val newPosition = (it.currentPosition + 30000).coerceAtMost(it.duration)
-                        it.seekTo(newPosition)
-                    }
-                },
-                modifier = Modifier.size(64.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.outline_forward_30_24),
-                    contentDescription = "Forward 30 seconds",
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
-//            Spacer(modifier = Modifier.width(16.dp))
-
-        }
-
-//        Spacer(modifier = Modifier.height(32.dp))
-        Row(
-            modifier = Modifier.background(Color.hsl(248.7F, 1F, .27f)).border(width = 3.dp, color = Color.White, shape =  RoundedCornerShape(3.dp)).padding(12.dp)
-        ){
-            IconButton(
-                onClick = {
-                    if (playbackSpeed > 0.5f){
-                        playbackSpeed -= 0.25f
-                    mediaController?.setPlaybackSpeed(playbackSpeed)
-                }
-                },
-                modifier = Modifier.size(64.dp)
-            ) { Icon(Icons.Filled.ArrowDownward,
-                contentDescription = "Slower",
-                tint = Color.White)}
-            // Speed Control
-            Column(modifier = Modifier.clickable(
-                enabled = true,
-
-                onClick = {
-                    playbackSpeed = 1f; mediaController?.setPlaybackSpeed(
-                    playbackSpeed
-                )
-                }).padding(vertical = 8.dp)) {
-                Text(
-                    text = String.format(Locale.US, "Speed:" ),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge,
-
-                    )
-                Text(
-                    text = String.format(Locale.US, "%.2fx", playbackSpeed),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge,
-
-                    )
-            }
-            IconButton(
-                onClick = {
-                    playbackSpeed = updateSpeedOnButtonPress(playbackSpeed)
-                    mediaController?.setPlaybackSpeed(playbackSpeed)
-                } ,
-                modifier = Modifier.size(64.dp),
-            ){
-                Icon(Icons.Rounded.ArrowUpward,
-                    contentDescription = "Faster",
-                    tint = Color.White)
-            }
-
-        }
-    }
-}
-@OptIn(UnstableApi::class)
-@ExperimentalGlideComposeApi
-@Composable
 fun AudioPlayer(
     audioUrl: String, // This acts as a fallback or "new play" target
     creator: String,
     title: String,
-    photoUrl: String
+    photoUrl: String,
+    navController: NavController
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var mediaController by remember { mutableStateOf<MediaController?>(null) }
 
     // UI State driven by the Controller
@@ -493,6 +285,17 @@ fun AudioPlayer(
             isPlaying = controller.isPlaying
             duration = controller.duration.coerceAtLeast(0L)
             playbackSpeed = controller.playbackParameters.speed
+
+            // Try to restore playback position from saved state
+            val playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(context)
+            val savedState = playbackStateManager.getPlaybackState(audioUrl)
+            if (savedState != null && savedState.currentPosition > 0) {
+                // Only restore if the saved position is reasonable (not at the very end)
+                if (savedState.currentPosition < savedState.duration * 0.95) {
+                    controller.seekTo(savedState.currentPosition)
+                    android.util.Log.d("PLAYBACK", "Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms")
+                }
+            }
 
             // Setup a listener to update the UI in real-time
             controller.addListener(object : Player.Listener {
@@ -524,10 +327,34 @@ fun AudioPlayer(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        val configuration = LocalConfiguration.current
+        val screenHeight = configuration.screenHeightDp
+
+        // Calculate dynamic artwork size based on screen height
+        // Leave room for controls (~320dp) and padding
+        val availableHeight = screenHeight - 320
+        val artworkSize = (availableHeight * 0.5f).coerceIn(150f, 280f).dp
+
+        // Queue button at top right
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            IconButton(onClick = {
+                navController.navigate("queue")
+            }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Sharp.PlaylistPlay,
+                    contentDescription = "View Queue",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
         // --- Artwork ---
         Box(
             modifier = Modifier
-                .size(280.dp)
+                .size(artworkSize)
                 .shadow(20.dp, RoundedCornerShape(16.dp))
         ) {
             GlideImage(
@@ -558,7 +385,7 @@ fun AudioPlayer(
             modifier = Modifier.padding(top = 4.dp)
         )
 
-//        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // --- Progress Slider ---
         val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
@@ -591,8 +418,8 @@ fun AudioPlayer(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { mediaController?.seekBack() }) {
-                Icon(painterResource(R.drawable.replay_10_24px), null, tint = Color.White, modifier = Modifier.size(36.dp))
+            IconButton(onClick = { mediaController?.seekBack() }, modifier = Modifier.size(48.dp)) {
+                Icon(painterResource(R.drawable.replay_10_24px), null, tint = Color.White, modifier = Modifier.size(28.dp))
             }
 
             // Big Play/Pause Button
@@ -604,24 +431,24 @@ fun AudioPlayer(
                 },
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.size(64.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         painter = painterResource(if (isPlaying) R.drawable.outline_pause_24 else R.drawable.play_arrow_24px),
                         contentDescription = null,
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(36.dp),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
 
-            IconButton(onClick = { mediaController?.seekForward() }) {
-                Icon(painterResource(R.drawable.outline_forward_30_24), null, tint = Color.White, modifier = Modifier.size(36.dp))
+            IconButton(onClick = { mediaController?.seekForward() }, modifier = Modifier.size(48.dp)) {
+                Icon(painterResource(R.drawable.outline_forward_30_24), null, tint = Color.White, modifier = Modifier.size(28.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // --- Speed Controls ---
         Surface(
@@ -633,8 +460,72 @@ fun AudioPlayer(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { if (playbackSpeed > 0.5f) mediaController?.setPlaybackSpeed(playbackSpeed - 0.25f) }) {
-                    Icon(Icons.Filled.ArrowDownward, null, tint = Color.White)
+                var isDecreasePressed by remember { mutableStateOf(false) }
+                var isIncreasePressed by remember { mutableStateOf(false) }
+                var isDecreaseLongPress by remember { mutableStateOf(false) }
+                var isIncreaseLongPress by remember { mutableStateOf(false) }
+
+                // Decrease Speed Button - Normal tap: -0.25f, Long press: -1.0f
+                IconButton(
+                    onClick = {
+                        // Only handle normal tap if it wasn't a long press
+                        if (!isDecreaseLongPress && playbackSpeed > 0.5f) {
+                            mediaController?.setPlaybackSpeed(
+                                (playbackSpeed - 0.25f).coerceAtLeast(0.5f)
+                            )
+                        }
+                        isDecreaseLongPress = false
+                    },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .border(
+                            width = 2.dp,
+                            color = if (isDecreasePressed) Color.White else Color.Transparent,
+                            shape = CircleShape
+                        )
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        Icon(
+                            Icons.Filled.ArrowDownward,
+                            null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            when (event.type) {
+                                                PointerEventType.Press -> {
+                                                    isDecreasePressed = true
+                                                    isDecreaseLongPress = false
+
+                                                    // After 1000ms of holding, decrease speed by 1.0f
+                                                    scope.launch {
+                                                        delay(1000)
+                                                        if (isDecreasePressed && playbackSpeed > 0.5f) {
+                                                            isDecreaseLongPress = true
+                                                            mediaController?.setPlaybackSpeed(
+                                                                (playbackSpeed - 1.0f).coerceAtLeast(0.5f)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                PointerEventType.Release -> {
+                                                    isDecreasePressed = false
+                                                }
+
+                                                else -> {}
+                                            }
+                                        }
+                                    }
+                                }
+                        )
+                    }
                 }
 
                 Column(
@@ -647,8 +538,67 @@ fun AudioPlayer(
                     Text(String.format(Locale.US, "%.2fx", playbackSpeed), color = Color.White, fontWeight = FontWeight.Bold)
                 }
 
-                IconButton(onClick = { if (playbackSpeed < 3.0f) mediaController?.setPlaybackSpeed(playbackSpeed + 0.25f) }) {
-                    Icon(Icons.Rounded.ArrowUpward, null, tint = Color.White)
+                // Increase Speed Button - Normal tap: +0.25f, Long press: +1.0f
+                IconButton(
+                    onClick = {
+                        // Only handle normal tap if it wasn't a long press
+                        if (!isIncreaseLongPress && playbackSpeed < 4.0f) {
+                            mediaController?.setPlaybackSpeed(
+                                (playbackSpeed + 0.25f).coerceAtMost(4.0f)
+                            )
+                        }
+                        isIncreaseLongPress = false
+                    },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .border(
+                            width = 2.dp,
+                            color = if (isIncreasePressed) Color.White else Color.Transparent,
+                            shape = CircleShape
+                        )
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        Icon(
+                            Icons.Rounded.ArrowUpward,
+                            null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            when (event.type) {
+                                                PointerEventType.Press -> {
+                                                    isIncreasePressed = true
+                                                    isIncreaseLongPress = false
+
+                                                    // After 1000ms of holding, increase speed by 1.0f
+                                                    scope.launch {
+                                                        delay(1000)
+                                                        if (isIncreasePressed && playbackSpeed < 4.0f) {
+                                                            isIncreaseLongPress = true
+                                                            mediaController?.setPlaybackSpeed(
+                                                                (playbackSpeed + 1.0f).coerceAtMost(4.0f)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                PointerEventType.Release -> {
+                                                    isIncreasePressed = false
+                                                }
+
+                                                else -> {}
+                                            }
+                                        }
+                                    }
+                                }
+                        )
+                    }
                 }
             }
         }

@@ -110,8 +110,8 @@ fun PodSearchBar(onSearch: (String) -> Unit) {
 @Composable
 fun findPod(SearchString: String, navController: NavController) { // Added NavController
     val context = LocalContext.current
-    var searchResults by rememberSaveable { mutableStateOf<SearchResultType>(SearchResultType.Empty) }
-    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var searchResults by remember { mutableStateOf<SearchResultType>(SearchResultType.Empty) }
+    var isLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(SearchString) {
         if (SearchString.isBlank()) {
@@ -285,7 +285,7 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
     // 2. Calculate dynamic size
     // Base size is 250dp, it will shrink as scrollState.value increases
     val maxImageSize = 250f
-    var searchResults by rememberSaveable { mutableStateOf<SearchResultType>(SearchResultType.Empty) }
+    var searchResults by remember { mutableStateOf<SearchResultType>(SearchResultType.Empty) }
 
     val minImageSize = 80f
     val scrollThreshold = 500f // How fast it shrinks

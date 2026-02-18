@@ -39,6 +39,82 @@ class PlaybackService : MediaSessionService() {
             .setSeekForwardIncrementMs(30000)
             .build()
 
+        val playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(this)
+
+        // Add listener to handle queue management when playback ends
+        player.addListener(object : androidx.media3.common.Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                when (playbackState) {
+                    androidx.media3.common.Player.STATE_ENDED -> {
+                        val currentMediaItem = player.currentMediaItem
+                        currentMediaItem?.mediaId?.let { audioUrl ->
+                            val queueManager = com.pod_chive.android.queue.PlayQueueManager(this@PlaybackService)
+
+                            // Get next episode BEFORE removing current
+                            val nextItem = queueManager.getNextItem()
+
+                            // Now remove current episode from queue
+                            queueManager.removeByAudioUrl(audioUrl)
+                            android.util.Log.d("QUEUE", "PlaybackService: Episode finished, removed from queue: $audioUrl")
+
+                            if (nextItem != null) {
+                                android.util.Log.d("QUEUE", "PlaybackService: Playing next in queue: ${nextItem.title}")
+
+                                // Create and play next media item
+                                val nextMediaItem = androidx.media3.common.MediaItem.Builder()
+                                    .setMediaId(nextItem.audioUrl)
+                                    .setUri(android.net.Uri.parse(nextItem.audioUrl))
+                                    .setMediaMetadata(
+                                        androidx.media3.common.MediaMetadata.Builder()
+                                            .setTitle(nextItem.title)
+                                            .setArtist(nextItem.creator)
+                                            .setArtworkUri(android.net.Uri.parse(nextItem.photoUrl))
+                                            .build()
+                                    )
+                                    .build()
+
+                                player.setMediaItem(nextMediaItem)
+                                player.prepare()
+                                player.play()
+                            } else {
+                                android.util.Log.d("QUEUE", "PlaybackService: No more items in queue")
+                            }
+                        }
+                    }
+                    androidx.media3.common.Player.STATE_READY -> {
+                        // Save playback state when ready to play
+                        savePlaybackState(player, playbackStateManager)
+                    }
+                }
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                // Save state when playback is paused
+                if (!isPlaying) {
+                    savePlaybackState(player, playbackStateManager)
+                }
+            }
+
+            private fun savePlaybackState(
+                player: androidx.media3.exoplayer.ExoPlayer,
+                manager: com.pod_chive.android.playback.PlaybackStateManager
+            ) {
+                val currentMediaItem = player.currentMediaItem
+                currentMediaItem?.let { mediaItem ->
+                    val state = com.pod_chive.android.playback.PlaybackState(
+                        audioUrl = mediaItem.mediaId,
+                        title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
+                        creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
+                        photoUrl = mediaItem.mediaMetadata.artworkUri?.toString() ?: "",
+                        currentPosition = player.currentPosition.coerceAtLeast(0),
+                        duration = player.duration.coerceAtLeast(0)
+                    )
+                    manager.savePlaybackState(state)
+                    android.util.Log.d("PLAYBACK", "Saved playback state: ${state.title} at ${state.currentPosition}ms")
+                }
+            }
+        })
+
         val callback = object : MediaSession.Callback {
             override fun onConnect(
                 session: MediaSession,
@@ -93,6 +169,25 @@ class PlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         mediaSession?.run {
+            // Save current playback state before destroying
+            val player = this.player
+            if (player.currentMediaItem != null) {
+                val playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(this@PlaybackService)
+                val currentMediaItem = player.currentMediaItem
+                currentMediaItem?.let { mediaItem ->
+                    val state = com.pod_chive.android.playback.PlaybackState(
+                        audioUrl = mediaItem.mediaId,
+                        title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
+                        creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
+                        photoUrl = mediaItem.mediaMetadata.artworkUri?.toString() ?: "",
+                        currentPosition = player.currentPosition.coerceAtLeast(0),
+                        duration = player.duration.coerceAtLeast(0)
+                    )
+                    playbackStateManager.savePlaybackState(state)
+                    android.util.Log.d("PLAYBACK", "Service destroyed, saved final state: ${state.title}")
+                }
+            }
+
             player.release()
             release()
         }

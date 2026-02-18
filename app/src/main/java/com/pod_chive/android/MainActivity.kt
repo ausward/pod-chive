@@ -143,6 +143,9 @@ class MainActivity : ComponentActivity() {
                             composable("favorites") {
                                 FavoritesScreen(navController)
                             }
+                            composable("queue") {
+                                com.pod_chive.android.queue.PlayQueueScreen(navController)
+                            }
 
                         }
                     }

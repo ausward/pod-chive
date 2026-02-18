@@ -6,6 +6,8 @@ import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.Query
 import android.content.Context
+import android.os.Parcel
+import android.os.Parcelable
 import com.google.gson.annotations.SerializedName
 import okhttp3.Cache
 import okhttp3.OkHttpClient
@@ -33,13 +35,45 @@ data class homeList(
 
 @kotlinx.serialization.Serializable
 data class homeItem(
-    val podcast_title:String,
-    val description:String,
-    val rss_url:String,
-    val html_summary_location:String,
+    val podcast_title: String,
+    val description: String,
+    val rss_url: String,
+    val html_summary_location: String,
     val output_directory: String,
     val cover_image_url: String? = null // New field for direct image URL
-)
+) : Parcelable {
+    constructor(parcel: Parcel) : this(
+        parcel.readString() ?: "",
+        parcel.readString() ?: "",
+        parcel.readString() ?: "",
+        parcel.readString() ?: "",
+        parcel.readString() ?: "",
+        parcel.readString()
+    )
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeString(podcast_title)
+        parcel.writeString(description)
+        parcel.writeString(rss_url)
+        parcel.writeString(html_summary_location)
+        parcel.writeString(output_directory)
+        parcel.writeString(cover_image_url)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<homeItem> {
+        override fun createFromParcel(parcel: Parcel): homeItem {
+            return homeItem(parcel)
+        }
+
+        override fun newArray(size: Int): Array<homeItem?> {
+            return arrayOfNulls(size)
+        }
+    }
+}
 
 
 // python based api.pod-chive.com client

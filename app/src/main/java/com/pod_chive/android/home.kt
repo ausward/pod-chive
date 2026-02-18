@@ -36,10 +36,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.sharp.PlaylistAdd
+import androidx.compose.material.icons.automirrored.sharp.PlaylistPlay
 import androidx.compose.material.icons.filled.ViewComfyAlt
 import androidx.compose.material.icons.filled.ViewDay
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,7 +67,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -448,6 +454,41 @@ fun EpisodeRow(
         Spacer(modifier = Modifier.width(8.dp))
         var audioUrl: String = ""
         var photoUrl = ""
+
+        // Add to Queue button
+        IconButton(
+            onClick = {
+                if (directory != null) {
+                    audioUrl = "https://pod-chive.com/${episode.audioFilePath}"
+                    photoUrl = "https://pod-chive.com/$directory/cover.webp"
+                } else {
+                    audioUrl = AudioUrl ?: return@IconButton
+                    photoUrl = PhotoUrl ?: return@IconButton
+                }
+
+                val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
+                val queueItem = com.pod_chive.android.queue.QueueItem(
+                    id = com.pod_chive.android.queue.PlayQueueManager.generateId(episode.title, audioUrl),
+                    title = episode.title,
+                    audioUrl = audioUrl,
+                    photoUrl = photoUrl,
+                    creator = podcastTitle ?: "Unknown",
+                    description = episode.description
+                )
+                queueManager.addToQueue(queueItem)
+                Log.d("QUEUE", "Added to queue: ${episode.title}")
+            },
+            modifier = Modifier.size(48.dp)
+        ) {
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Sharp.PlaylistAdd,
+                contentDescription = "View Queue",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
         IconButton(
             enabled = controller != null,
             onClick = {
@@ -465,7 +506,7 @@ fun EpisodeRow(
                 Log.d("LINK", "Playing audio URL: $audioUrl")
 
                 val player = controller ?: return@IconButton
-    Log.e("LINK", AudioUrl?: "Audio URL is null")
+                Log.e("LINK", AudioUrl?: "Audio URL is null")
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(audioUrl)
                     .setUri(Uri.parse(audioUrl))

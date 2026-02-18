@@ -226,20 +226,20 @@ fun FavoritePodcastItem(
             )
         }
 
-        IconButton(
-            onClick = {
-                val repository = FavoritePodcastRepository(context)
-                GlobalScope.launch(Dispatchers.IO) {
-                    repository.deleteFavorite(favorite)
-                    onDelete(favorite)
-                }
-            }
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = "Delete favorite",
-                tint = MaterialTheme.colorScheme.error
-            )
-        }
+//        IconButton(
+//            onClick = {
+//                val repository = FavoritePodcastRepository(context)
+//                GlobalScope.launch(Dispatchers.IO) {
+//                    repository.deleteFavorite(favorite)
+//                    onDelete(favorite)
+//                }
+//            }
+//        ) {
+//            Icon(
+//                imageVector = Icons.Filled.Delete,
+//                contentDescription = "Delete favorite",
+//                tint = MaterialTheme.colorScheme.error
+//            )
+//        }
     }
 }
