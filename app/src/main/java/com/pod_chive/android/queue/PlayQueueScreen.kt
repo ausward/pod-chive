@@ -25,10 +25,13 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.pod_chive.android.R
+import com.pod_chive.android.playback.PlaybackState
+import com.pod_chive.android.playback.PlaybackStateManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import android.net.Uri
 import android.content.ComponentName
+import android.widget.Toast
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.session.MediaController
@@ -41,8 +44,10 @@ import com.pod_chive.android.PlaybackService
 fun PlayQueueScreen(navController: NavController) {
     val context = LocalContext.current
     val queueManager = remember { PlayQueueManager(context) }
+    val playbackStateManager = remember { PlaybackStateManager(context) }
     var queueItems by remember { mutableStateOf(queueManager.getQueue()) }
     var currentIndex by remember { mutableStateOf(queueManager.getCurrentIndex()) }
+    var playbackStates by remember { mutableStateOf<Map<String, PlaybackState>>(emptyMap()) }
     val coroutineScope = rememberCoroutineScope()
     var controller by remember { mutableStateOf<MediaController?>(null) }
 
@@ -55,11 +60,23 @@ fun PlayQueueScreen(navController: NavController) {
         }, MoreExecutors.directExecutor())
     }
 
-    // Refresh queue periodically
+    // Refresh queue and playback states periodically
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(500)
-        queueItems = queueManager.getQueue()
-        currentIndex = queueManager.getCurrentIndex()
+        while (true) {
+            kotlinx.coroutines.delay(500)
+            queueItems = queueManager.getQueue()
+            currentIndex = queueManager.getCurrentIndex()
+
+            // Load playback states for all queue items
+            val states = mutableMapOf<String, PlaybackState>()
+            queueItems.forEach { item ->
+                val state = playbackStateManager.getPlaybackState(item.audioUrl)
+                if (state != null) {
+                    states[item.audioUrl] = state
+                }
+            }
+            playbackStates = states
+        }
     }
 
     Scaffold(
@@ -127,39 +144,48 @@ fun PlayQueueScreen(navController: NavController) {
                     .padding(padding)
             ) {
                 itemsIndexed(queueItems) { index, item ->
+                    val playbackState = playbackStates[item.audioUrl]
                     QueueItemRow(
                         item = item,
                         isCurrentlyPlaying = index == currentIndex,
+                        playbackState = playbackState,
                         onPlay = {
-                            controller?.let { player ->
-                                val mediaItem = MediaItem.Builder()
-                                    .setMediaId(item.audioUrl)
-                                    .setUri(Uri.parse(item.audioUrl))
-                                    .setMediaMetadata(
-                                        MediaMetadata.Builder()
-                                            .setTitle(item.title)
-                                            .setArtist(item.creator)
-                                            .setArtworkUri(Uri.parse(item.photoUrl))
-                                            .build()
-                                    )
-                                    .build()
+                            val player = controller?: return@QueueItemRow
 
-                                player.setMediaItem(mediaItem)
-                                player.prepare()
-                                player.play()
-
-                                queueManager.setCurrentIndex(index)
-                                currentIndex = index
-
-                                // Navigate to PlayPod
-                                val encodedAudioUrl = Uri.encode(item.audioUrl)
-                                val encodedTitle = Uri.encode(item.title)
-                                val encodedPhotoUrl = Uri.encode(item.photoUrl)
-                                val encodedCreator = Uri.encode(item.creator)
-                                navController.navigate(
-                                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator"
+                            val mediaItem = MediaItem.Builder()
+                                .setMediaId(item.audioUrl)
+                                .setUri(Uri.parse(item.audioUrl))
+                                .setMediaMetadata(
+                                    MediaMetadata.Builder()
+                                        .setTitle(item.title)
+                                        .setArtist(item.creator)
+                                        .setArtworkUri(Uri.parse(item.photoUrl))
+                                        .build()
                                 )
-                            }
+                                .build()
+
+                            Toast.makeText(context, "Playing: ${item.title}", Toast.LENGTH_SHORT).show()
+
+                            player.setMediaItem(mediaItem)
+                            player.prepare()
+                            player.play()
+
+                            // PlaybackService will automatically restore position when STATE_READY
+
+                            // Move this item to the top of the queue
+                            queueManager.moveToTop(item.id)
+                            queueItems = queueManager.getQueue()
+                            currentIndex = queueManager.getCurrentIndex()
+
+                            // Navigate to PlayPod
+                            val encodedAudioUrl = Uri.encode(item.audioUrl)
+                            val encodedTitle = Uri.encode(item.title)
+                            val encodedPhotoUrl = Uri.encode(item.photoUrl)
+                            val encodedCreator = Uri.encode(item.creator)
+                            navController.navigate(
+                                "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator"
+                            )
+
                         },
                         onRemove = {
                             coroutineScope.launch(Dispatchers.IO) {
@@ -188,6 +214,7 @@ fun PlayQueueScreen(navController: NavController) {
 fun QueueItemRow(
     item: QueueItem,
     isCurrentlyPlaying: Boolean,
+    playbackState: PlaybackState?,
     onPlay: () -> Unit,
     onRemove: () -> Unit
 ) {
@@ -239,6 +266,25 @@ fun QueueItemRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                // Display playback progress if available
+                if (playbackState != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "${formatTime(playbackState.currentPosition)} / ${formatTime(playbackState.duration)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                    LinearProgressIndicator(
+                        progress = { (playbackState.currentPosition.toFloat() / playbackState.duration.toFloat()).coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .padding(top = 4.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -262,5 +308,12 @@ fun QueueItemRow(
             }
         }
     }
+}
+
+fun formatTime(milliseconds: Long): String {
+    val totalSeconds = milliseconds / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }
 

@@ -12,10 +12,16 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import android.app.PendingIntent
+import androidx.media3.common.Player
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private lateinit var playbackStateManager: com.pod_chive.android.playback.PlaybackStateManager
+    private var lastRestoredUrl: String? = null
 
     private val forward30Button by lazy {
         CommandButton.Builder()
@@ -37,158 +43,142 @@ class PlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize playback state manager once
         playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(this)
 
         val player = ExoPlayer.Builder(this)
             .setSeekForwardIncrementMs(30000)
             .build()
 
-
-        // Add listener to handle queue management when playback ends
-        player.addListener(object : androidx.media3.common.Player.Listener {
-            private var lastRestoredUrl: String? = null
+        // Add listener to handle restoration and queue management
+        player.addListener(object : Player.Listener {
+            override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+                // Reset flag when media item changes
+                lastRestoredUrl = null
+                android.util.Log.d("PLAYBACK", "Media item changed: ${mediaItem?.mediaId}")
+            }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 when (playbackState) {
-                    androidx.media3.common.Player.STATE_READY -> {
-                        // When ready to play, restore position if available (only once per media item)
+                    Player.STATE_READY -> {
+                        // Duration is now loaded - safe to restore
                         val currentUrl = player.currentMediaItem?.mediaId
                         if (currentUrl != null && currentUrl != lastRestoredUrl) {
-                            restorePlaybackPosition(player, playbackStateManager)
+                            android.util.Log.d("PLAYBACK", "STATE_READY: Restoring position for $currentUrl")
+                            restorePlaybackState(player)
                             lastRestoredUrl = currentUrl
                         }
                     }
-                    androidx.media3.common.Player.STATE_ENDED -> {
-                        lastRestoredUrl = null
-                        val currentMediaItem = player.currentMediaItem
-                        currentMediaItem?.mediaId?.let { audioUrl ->
-                            val queueManager = com.pod_chive.android.queue.PlayQueueManager(this@PlaybackService)
-
-                            // Get next episode BEFORE removing current
-                            val nextItem = queueManager.getNextItem()
-
-                            // Now remove current episode from queue
-                            queueManager.removeByAudioUrl(audioUrl)
-                            android.util.Log.d("QUEUE", "PlaybackService: Episode finished, removed from queue: $audioUrl")
-
-                            if (nextItem != null) {
-                                android.util.Log.d("QUEUE", "PlaybackService: Playing next in queue: ${nextItem.title}")
-
-                                // Create and play next media item
-                                val nextMediaItem = androidx.media3.common.MediaItem.Builder()
-                                    .setMediaId(nextItem.audioUrl)
-                                    .setUri(android.net.Uri.parse(nextItem.audioUrl))
-                                    .setMediaMetadata(
-                                        androidx.media3.common.MediaMetadata.Builder()
-                                            .setTitle(nextItem.title)
-                                            .setArtist(nextItem.creator)
-                                            .setArtworkUri(android.net.Uri.parse(nextItem.photoUrl))
-                                            .build()
-                                    )
-                                    .build()
-
-                                player.setMediaItem(nextMediaItem)
-                                player.prepare()
-                                player.play()
-                            } else {
-                                android.util.Log.d("QUEUE", "PlaybackService: No more items in queue")
-                            }
-                        }
+                    Player.STATE_ENDED -> {
+                        handleEpisodeFinished(player)
                     }
                 }
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                // Save state when playback is paused or stopped
+                // Save state when playback stops
                 if (!isPlaying) {
-                    savePlaybackState(player, playbackStateManager)
-                    android.util.Log.d("PLAYBACK", "Paused - saved playback state")
+                    savePlaybackState(player)
                 }
             }
 
-            private fun savePlaybackState(
-                player: androidx.media3.exoplayer.ExoPlayer,
-                manager: com.pod_chive.android.playback.PlaybackStateManager
-            ) {
-                val currentMediaItem = player.currentMediaItem
-                currentMediaItem?.let { mediaItem ->
-                    try {
+            private fun savePlaybackState(player: ExoPlayer) {
+                val mediaItem = player.currentMediaItem ?: return
+                try {
+                    val duration = player.duration
+                    val position = player.currentPosition
+
+                    android.util.Log.d("PLAYBACK", "Save: Checking - position: ${position}ms, duration: ${duration}ms")
+
+                    // Only save if duration has been loaded and is valid
+                    if (duration > 0) {
                         val state = com.pod_chive.android.playback.PlaybackState(
                             audioUrl = mediaItem.mediaId,
                             title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
                             creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
                             photoUrl = mediaItem.mediaMetadata.artworkUri?.toString() ?: "",
-                            currentPosition = player.currentPosition.coerceAtLeast(0),
-                            duration = player.duration.coerceAtLeast(0),
+                            currentPosition = position.coerceAtLeast(0),
+                            duration = duration.coerceAtLeast(0),
                             playbackSpeed = player.playbackParameters.speed
                         )
-                        manager.savePlaybackState(state)
-                        android.util.Log.d("PLAYBACK", "Saved: ${state.title} at ${state.currentPosition}ms / ${state.duration}ms, speed: ${state.playbackSpeed}x")
-                    } catch (e: Exception) {
-                        android.util.Log.e("PLAYBACK", "Error saving state: ${e.message}")
+                        playbackStateManager.savePlaybackState(state)
+                        android.util.Log.d("PLAYBACK", "✓ Saved: ${state.title} at ${state.currentPosition}ms / ${state.duration}ms @ ${state.playbackSpeed}x")
+                    } else {
+                        android.util.Log.d("PLAYBACK", "Save: Skipped - duration not ready ($duration)")
                     }
+                } catch (e: Exception) {
+                    android.util.Log.e("PLAYBACK", "Save: Error - ${e.message}", e)
                 }
             }
 
-            private fun restorePlaybackPosition(
-                player: androidx.media3.exoplayer.ExoPlayer,
-                manager: com.pod_chive.android.playback.PlaybackStateManager
-            ) {
-                val currentMediaItem = player.currentMediaItem ?: return
-                val audioUrl = currentMediaItem.mediaId
+            private fun restorePlaybackState(player: ExoPlayer) {
+                val mediaItem = player.currentMediaItem ?: return
+                val audioUrl = mediaItem.mediaId
 
-                android.util.Log.d("PLAYBACK", "PlaybackService: Attempting to restore position for: $audioUrl")
+                try {
+                    android.util.Log.d("PLAYBACK", "Restore: Looking for saved state for $audioUrl")
+                    val savedState = playbackStateManager.getPlaybackState(audioUrl)
 
-                var savedState = manager.getPlaybackState(audioUrl)
-
-                // Try different URL matching strategies
-                if (savedState == null && audioUrl.contains("%")) {
-                    val decodedUrl = try {
-                        android.net.Uri.decode(audioUrl)
-                    } catch (e: Exception) {
-                        audioUrl
-                    }
-                    savedState = manager.getPlaybackState(decodedUrl)
                     if (savedState != null) {
-                        android.util.Log.d("PLAYBACK", "Found state using decoded URL")
-                    }
-                }
+                        android.util.Log.d("PLAYBACK", "Restore: Found - pos=${savedState.currentPosition}ms, dur=${savedState.duration}ms, speed=${savedState.playbackSpeed}x")
 
-                // Search all states for a match
-                if (savedState == null) {
-                    val allStates = manager.getAllPlaybackStates()
-                    savedState = allStates.values.firstOrNull {
-                        it.audioUrl == audioUrl ||
-                        try {
-                            android.net.Uri.decode(it.audioUrl) == audioUrl ||
-                            android.net.Uri.decode(it.audioUrl) == android.net.Uri.decode(audioUrl)
-                        } catch (e: Exception) {
-                            false
-                        }
-                    }
-                }
+                        if (savedState.currentPosition > 0 && savedState.duration > 0) {
+                            val isAtEnd = savedState.currentPosition >= savedState.duration * 0.95
 
-                if (savedState != null) {
-                    android.util.Log.d("PLAYBACK", "Found saved state: ${savedState.title}")
-                    // Check if position is reasonable (not at the very end and greater than 0)
-                    if (savedState.currentPosition > 0 &&
-                        savedState.duration > 0 &&
-                        savedState.currentPosition < savedState.duration * 0.95) {
+                            if (!isAtEnd) {
+                                try {
+                                    // Use seekTo with immediate effect
+                                    player.seekTo(savedState.currentPosition)
+                                    player.setPlaybackSpeed(savedState.playbackSpeed)
 
-                        try {
-                            player.seekTo(savedState.currentPosition)
-                            // Restore playback speed
-                            player.setPlaybackSpeed(savedState.playbackSpeed)
-                            android.util.Log.d("PLAYBACK", "✓ Restored position: ${savedState.currentPosition}ms / ${savedState.duration}ms, speed: ${savedState.playbackSpeed}x")
-                        } catch (e: Exception) {
-                            android.util.Log.e("PLAYBACK", "Error seeking or setting speed: ${e.message}")
+                                    android.util.Log.d("PLAYBACK", "✓ Restored: ${savedState.title} @ ${savedState.currentPosition}ms, speed=${savedState.playbackSpeed}x")
+                                    android.util.Log.d("PLAYBACK", "  Player position after seek: ${player.currentPosition}ms")
+                                } catch (e: Exception) {
+                                    android.util.Log.e("PLAYBACK", "Restore: Seek failed - ${e.message}")
+                                }
+                            } else {
+                                android.util.Log.d("PLAYBACK", "✗ Restore: Skipped - at end (${savedState.currentPosition}ms / ${savedState.duration}ms)")
+                            }
+                        } else {
+                            android.util.Log.d("PLAYBACK", "✗ Restore: Invalid data (pos=${savedState.currentPosition}ms, dur=${savedState.duration}ms)")
                         }
                     } else {
-                        android.util.Log.d("PLAYBACK", "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms")
+                        android.util.Log.d("PLAYBACK", "✗ Restore: No saved state found for $audioUrl")
                     }
-                } else {
-                    android.util.Log.d("PLAYBACK", "✗ No saved state found for: $audioUrl")
+                } catch (e: Exception) {
+                    android.util.Log.e("PLAYBACK", "Restore: Error - ${e.message}", e)
+                }
+            }
+
+            private fun handleEpisodeFinished(player: ExoPlayer) {
+                val audioUrl = player.currentMediaItem?.mediaId ?: return
+
+                try {
+                    val queueManager = com.pod_chive.android.queue.PlayQueueManager(this@PlaybackService)
+                    val nextItem = queueManager.getNextItem()
+
+                    queueManager.removeByAudioUrl(audioUrl)
+                    android.util.Log.d("QUEUE", "Episode finished: $audioUrl")
+
+                    if (nextItem != null) {
+                        val nextMediaItem = androidx.media3.common.MediaItem.Builder()
+                            .setMediaId(nextItem.audioUrl)
+                            .setUri(android.net.Uri.parse(nextItem.audioUrl))
+                            .setMediaMetadata(
+                                androidx.media3.common.MediaMetadata.Builder()
+                                    .setTitle(nextItem.title)
+                                    .setArtist(nextItem.creator)
+                                    .setArtworkUri(android.net.Uri.parse(nextItem.photoUrl))
+                                    .build()
+                            )
+                            .build()
+
+                        player.setMediaItem(nextMediaItem)
+                        player.prepare()
+                        player.play()
+                        android.util.Log.d("QUEUE", "Playing next: ${nextItem.title}")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("QUEUE", "Error handling finished episode: ${e.message}")
                 }
             }
         })
@@ -229,8 +219,8 @@ class PlaybackService : MediaSessionService() {
             }
         }
 
-        val sessionIntent = packageManager.getLaunchIntentForPackage(packageName)!! // Force non-nullable
-        val sessionPendingIntent: PendingIntent = PendingIntent.getActivity( // Now this can be non-nullable
+        val sessionIntent = packageManager.getLaunchIntentForPackage(packageName)!!
+        val sessionPendingIntent: PendingIntent = PendingIntent.getActivity(
             this,
             0,
             sessionIntent,
@@ -238,7 +228,7 @@ class PlaybackService : MediaSessionService() {
         )
 
         mediaSession = MediaSession.Builder(this, player)
-            .setSessionActivity(sessionPendingIntent) // Pass the non-nullable PendingIntent
+            .setSessionActivity(sessionPendingIntent)
             .setCallback(callback)
             .build()
     }
@@ -247,13 +237,12 @@ class PlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         mediaSession?.run {
-            // Save current playback state before destroying
             val player = this.player
             if (player.currentMediaItem != null && ::playbackStateManager.isInitialized) {
-                val currentMediaItem = player.currentMediaItem
-                currentMediaItem?.let { mediaItem ->
+                val mediaItem = player.currentMediaItem
+                try {
                     val state = com.pod_chive.android.playback.PlaybackState(
-                        audioUrl = mediaItem.mediaId,
+                        audioUrl = mediaItem?.mediaId ?: return@run,
                         title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
                         creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
                         photoUrl = mediaItem.mediaMetadata.artworkUri?.toString() ?: "",
@@ -262,7 +251,9 @@ class PlaybackService : MediaSessionService() {
                         playbackSpeed = player.playbackParameters.speed
                     )
                     playbackStateManager.savePlaybackState(state)
-                    android.util.Log.d("PLAYBACK", "onDestroy: Saved final state: ${state.title} at ${state.currentPosition}ms, speed: ${state.playbackSpeed}x")
+                    android.util.Log.d("PLAYBACK", "✓ Saved on destroy: ${state.title}")
+                } catch (e: Exception) {
+                    android.util.Log.e("PLAYBACK", "Error in onDestroy: ${e.message}")
                 }
             }
 

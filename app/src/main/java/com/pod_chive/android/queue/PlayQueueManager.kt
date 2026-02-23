@@ -62,6 +62,17 @@ class PlayQueueManager(context: Context) {
         }
     }
 
+    fun moveToTop(itemId: String) {
+        val queue = getQueue().toMutableList()
+        val itemIndex = queue.indexOfFirst { it.id == itemId }
+        if (itemIndex >= 0 && itemIndex > 0) {
+            val item = queue.removeAt(itemIndex)
+            queue.add(0, item)
+            saveQueue(queue)
+            setCurrentIndex(0)
+        }
+    }
+
     fun getCurrentIndex(): Int {
         return prefs.getInt(CURRENT_INDEX_KEY, 0)
     }

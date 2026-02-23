@@ -107,20 +107,56 @@ fun PlayPod(
         controllerFuture.addListener({
             val pc = controllerFuture.get()
             controller = pc
+            if (controller?.isPlaying != true) {
+            // If no audio URL was provided, load and play the top item from the queue
+//            if (audioUrl.isNullOrBlank() || audioUrl == " ") {
+                val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
+                val queueItems = queueManager.getQueue()
+                if (queueItems.isNotEmpty()) {
+                    val topItem = queueItems[0]
 
-            // Pull the metadata that was set in EpisodeRow
-            val metadataTitle = pc.mediaMetadata.title?.toString()
-            val metadataCreator = pc.mediaMetadata.artist?.toString()
-            val metadataPhotoUrl = pc.mediaMetadata.artworkUri?.toString()
+                    // Update UI with queue item info
+                    finalAudioUrl = topItem.audioUrl
+                    finalTitle = topItem.title
+                    finalPhotoUrl = topItem.photoUrl
+                    finalCreator = topItem.creator
 
-            if (!metadataTitle.isNullOrBlank()) {
-                finalTitle = metadataTitle
-            }
-            if (!metadataCreator.isNullOrBlank()) {
-                finalCreator = metadataCreator
-            }
-            if (!metadataPhotoUrl.isNullOrBlank()) {
-                finalPhotoUrl = metadataPhotoUrl
+                    // Create and set media item
+                    val mediaItem = androidx.media3.common.MediaItem.Builder()
+                        .setMediaId(topItem.audioUrl)
+                        .setUri(android.net.Uri.parse(topItem.audioUrl))
+                        .setMediaMetadata(
+                            androidx.media3.common.MediaMetadata.Builder()
+                                .setTitle(topItem.title)
+                                .setArtist(topItem.creator)
+                                .setArtworkUri(android.net.Uri.parse(topItem.photoUrl))
+                                .build()
+                        )
+                        .build()
+
+                    pc.setMediaItem(mediaItem)
+                    pc.prepare()
+                    pc.play()
+
+                    android.util.Log.d("PLAYPLAY", "Playing top queue item: ${topItem.title}")
+                } else {
+                    android.util.Log.d("PLAYPLAY", "Queue is empty, no item to play")
+                }
+            } else {
+                // Pull the metadata that was set in EpisodeRow
+                val metadataTitle = pc.mediaMetadata.title?.toString()
+                val metadataCreator = pc.mediaMetadata.artist?.toString()
+                val metadataPhotoUrl = pc.mediaMetadata.artworkUri?.toString()
+
+                if (!metadataTitle.isNullOrBlank()) {
+                    finalTitle = metadataTitle
+                }
+                if (!metadataCreator.isNullOrBlank()) {
+                    finalCreator = metadataCreator
+                }
+                if (!metadataPhotoUrl.isNullOrBlank()) {
+                    finalPhotoUrl = metadataPhotoUrl
+                }
             }
         }, MoreExecutors.directExecutor())
     }
@@ -426,16 +462,16 @@ fun AudioPlayer(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            IconButton(onClick = {
-                navController.navigate("debug_playback")
-            }) {
-                Icon(
-                    painter = painterResource(R.drawable.outline_forward_30_24),
-                    contentDescription = "Debug",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+//            IconButton(onClick = {
+//                navController.navigate("debug_playback")
+//            }) {
+//                Icon(
+//                    painter = painterResource(R.drawable.outline_forward_30_24),
+//                    contentDescription = "Debug",
+//                    tint = MaterialTheme.colorScheme.onSurface,
+//                    modifier = Modifier.size(24.dp)
+//                )
+//            }
             IconButton(onClick = {
                 navController.navigate("queue")
             }) {

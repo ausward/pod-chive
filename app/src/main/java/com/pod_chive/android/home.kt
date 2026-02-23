@@ -523,6 +523,21 @@ fun EpisodeRow(
                 player.prepare()
                 player.play()
 
+                // Add episode to queue at the top
+                val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
+                val queueItem = com.pod_chive.android.queue.QueueItem(
+                    id = com.pod_chive.android.queue.PlayQueueManager.generateId(episode.title, audioUrl),
+                    title = episode.title,
+                    audioUrl = audioUrl,
+                    photoUrl = photoUrl,
+                    creator = podcastTitle ?: "Unknown",
+                    description = episode.description
+                )
+                queueManager.addToQueue(queueItem)
+                queueManager.moveToTop(queueItem.id)
+                Log.d("QUEUE", "Added and moved to top: ${episode.title}")
+
+
                 val encodedAudioUrl = Uri.encode(audioUrl)
                 val encodedTitle = Uri.encode(episode.title)
                 val encodedPhotoUrl = Uri.encode(photoUrl)
