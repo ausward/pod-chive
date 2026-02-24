@@ -38,6 +38,9 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import com.pod_chive.android.PlaybackService
+import com.pod_chive.android.ui.theme.PodchiveTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalGlideComposeApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +66,7 @@ fun PlayQueueScreen(navController: NavController) {
     // Refresh queue and playback states periodically
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(500)
+            delay(500)
             queueItems = queueManager.getQueue()
             currentIndex = queueManager.getCurrentIndex()
 
@@ -190,7 +193,7 @@ fun PlayQueueScreen(navController: NavController) {
                         onRemove = {
                             coroutineScope.launch(Dispatchers.IO) {
                                 queueManager.removeFromQueue(item.id)
-                                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                withContext(Dispatchers.Main) {
                                     queueItems = queueManager.getQueue()
                                     currentIndex = queueManager.getCurrentIndex()
                                 }
@@ -317,3 +320,43 @@ fun formatTime(milliseconds: Long): String {
     return String.format("%02d:%02d", minutes, seconds)
 }
 
+@Composable
+fun PlayBackProgressVis(playbackState: PlaybackState?) {
+// Display playback progress if available
+    if (playbackState?.currentPosition != playbackState?.duration) {
+        if (playbackState != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "${formatTime(playbackState.currentPosition)} / ${formatTime(playbackState.duration)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.tertiary,
+                fontSize = 11.sp
+            )
+            LinearProgressIndicator(
+                progress = {
+                    (playbackState.currentPosition.toFloat() / playbackState.duration.toFloat()).coerceIn(
+                        0f,
+                        1f
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .padding(top = 4.dp),
+                color = MaterialTheme.colorScheme.tertiary
+            )
+        }
+    } else if (playbackState?.duration == playbackState?.currentPosition) {
+        PodchiveTheme() {
+        Text(
+            text = "completed",
+            fontStyle = MaterialTheme.typography.bodySmall.fontStyle,
+            color = MaterialTheme.colorScheme.tertiary,
+            fontSize = 11.sp
+
+
+        )}
+    }
+
+
+}
