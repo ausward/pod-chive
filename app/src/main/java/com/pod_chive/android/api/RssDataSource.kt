@@ -48,7 +48,8 @@ object RssDataSource {
         val temp = Episode(
             title = this.title ?: "Untitled Episode",
             description = this.content ?: this.description, // Prioritize content:encoded
-            audioFilePath = audioUrl
+            audioFilePath = audioUrl,
+            pubDate = this.pubDate ?: ""
         )
 //        Log.d("RssDataSource", "Episode: $temp")
         return temp

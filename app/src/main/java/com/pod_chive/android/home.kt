@@ -564,12 +564,17 @@ fun EpisodeRow(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-
+                Text(text= episode.pubDate.substring(0, 16),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Spacer(modifier = Modifier.height(4.dp))
 
                 HtmlText(
                     html = episode.description ?: "No description available.",
-                    maxLines = 3,
+                    maxLines = 2,
                 )
                 if (state.duration > 0) {
 //                     var progressPercent = 100f * state.currentPosition.toFloat() / state.duration.toFloat()
