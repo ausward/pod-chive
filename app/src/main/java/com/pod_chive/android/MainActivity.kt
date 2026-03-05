@@ -92,7 +92,7 @@ class MainActivity : ComponentActivity() {
                     Column(modifier = Modifier.padding(innerPadding)) {
                         NavHost(navController = navController, startDestination = "home") {
                             composable("home") {
-                                HomePage(navController)
+                                FavoriteEpisodesScreen(navController)
                             }
                             composable("search") {
                                 var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -139,6 +139,9 @@ class MainActivity : ComponentActivity() {
 
 
 
+                            }
+                            composable("favorite_episodes"){
+                                FavoriteEpisodesScreen(navController)
                             }
                             composable("favorites") {
                                 FavoritesScreen(navController)

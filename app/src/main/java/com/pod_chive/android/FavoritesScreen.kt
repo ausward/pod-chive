@@ -13,7 +13,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,10 +43,7 @@ import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
-import com.pod_chive.android.api.homeItem
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalGlideComposeApi::class)
@@ -88,6 +86,14 @@ fun FavoritesScreen(navController: NavController) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 8.dp)
             )
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = { navController.navigate("favorite_episodes") }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.List,
+                    contentDescription = "View all episodes",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
         HorizontalDivider(

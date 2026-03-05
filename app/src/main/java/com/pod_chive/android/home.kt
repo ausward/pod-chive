@@ -6,14 +6,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Pause
 import android.content.ComponentName
 import android.net.Uri
 import android.util.Log
 import android.widget.TextView
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +19,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,18 +32,14 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.sharp.PlaylistAdd
-import androidx.compose.material.icons.automirrored.sharp.PlaylistPlay
 import androidx.compose.material.icons.filled.ViewComfyAlt
 import androidx.compose.material.icons.filled.ViewDay
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -71,10 +64,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.session.SessionToken
@@ -89,7 +80,6 @@ import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.ui.theme.PodchiveTheme
-//import com.pod_chive.android.playback.PlaybackState
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayBackProgressVis
 import kotlinx.coroutines.Dispatchers
@@ -103,7 +93,7 @@ fun HomePage(navController: NavController ) {
     val context = LocalContext.current
     var isloading by rememberSaveable { mutableStateOf(false) }
     var podcasts by rememberSaveable() { mutableStateOf<ArrayList<homeItem>>(arrayListOf()) }
-    var error: String = ""
+    var error = ""
     var grid by rememberSaveable(){ mutableStateOf(false) }
 
 
@@ -396,7 +386,8 @@ fun EpisodeRow(
     navController: NavController,
     playbackState: PlaybackState,
     AudioUrl: String? = null,
-    PhotoUrl: String? = null
+    PhotoUrl: String? = null,
+    showPodcastImage: Boolean = false
 ) {
     var showDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -554,6 +545,17 @@ fun EpisodeRow(
                 .padding(vertical = 8.dp, horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (showPodcastImage) {
+                GlideImage(
+                    model = photoUrl,
+                    contentDescription = "Cover",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(MaterialTheme.shapes.medium),
+                    loading = placeholder(R.mipmap.shrug),
+                    failure = placeholder(R.mipmap.shrug)
+                    )
+            }
 
             Spacer(modifier = Modifier.width(8.dp))
 
