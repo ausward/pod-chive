@@ -2,6 +2,7 @@ package com.pod_chive.android
 
 import android.content.Intent
 import android.os.Bundle
+import android.media.AudioManager
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
@@ -13,15 +14,14 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import android.app.PendingIntent
 import androidx.media3.common.Player
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
+import androidx.core.net.toUri
 
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private lateinit var playbackStateManager: com.pod_chive.android.playback.PlaybackStateManager
     private var lastRestoredUrl: String? = null
+    private lateinit var audioManager: AudioManager
+    private var audioFocusListener: AudioManager.OnAudioFocusChangeListener? = null
 
     private val forward30Button by lazy {
         CommandButton.Builder()
@@ -42,6 +42,8 @@ class PlaybackService : MediaSessionService() {
     @UnstableApi
     override fun onCreate() {
         super.onCreate()
+
+        audioManager = getSystemService(AudioManager::class.java)
 
         playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(this)
 
@@ -71,13 +73,21 @@ class PlaybackService : MediaSessionService() {
                     Player.STATE_ENDED -> {
                         handleEpisodeFinished(player)
                     }
+                    Player.STATE_IDLE, Player.STATE_BUFFERING -> {
+                        // No action needed for these states
+                    }
                 }
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                // Save state when playback stops
-                if (!isPlaying) {
+                if (isPlaying) {
+                    // Request audio focus when starting playback
+                    requestAudioFocus()
+                } else {
+                    // Save state when playback stops
                     savePlaybackState(player)
+                    // Abandon audio focus when stopping
+                    abandonAudioFocus()
                 }
             }
 
@@ -162,12 +172,12 @@ class PlaybackService : MediaSessionService() {
                     if (nextItem != null) {
                         val nextMediaItem = androidx.media3.common.MediaItem.Builder()
                             .setMediaId(nextItem.audioUrl)
-                            .setUri(android.net.Uri.parse(nextItem.audioUrl))
+                            .setUri(nextItem.audioUrl.toUri())
                             .setMediaMetadata(
                                 androidx.media3.common.MediaMetadata.Builder()
                                     .setTitle(nextItem.title)
                                     .setArtist(nextItem.creator)
-                                    .setArtworkUri(android.net.Uri.parse(nextItem.photoUrl))
+                                    .setArtworkUri(nextItem.photoUrl.toUri())
                                     .build()
                             )
                             .build()
@@ -235,7 +245,66 @@ class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
+    private fun requestAudioFocus() {
+        try {
+            audioFocusListener = object : AudioManager.OnAudioFocusChangeListener {
+                override fun onAudioFocusChange(focusChange: Int) {
+                    when (focusChange) {
+                        AudioManager.AUDIOFOCUS_LOSS -> {
+                            mediaSession?.player?.pause()
+                            android.util.Log.d("AUDIO_FOCUS", "Lost focus - paused")
+                        }
+                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                            mediaSession?.player?.pause()
+                            android.util.Log.d("AUDIO_FOCUS", "Transient loss - paused")
+                        }
+                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                            mediaSession?.player?.setPlaybackSpeed(0.5f)
+                            android.util.Log.d("AUDIO_FOCUS", "Transient loss (can duck) - reduced volume")
+                        }
+                        AudioManager.AUDIOFOCUS_GAIN -> {
+                            mediaSession?.player?.play()
+                            mediaSession?.player?.setPlaybackSpeed(1f)
+                            android.util.Log.d("AUDIO_FOCUS", "Gained focus - resumed")
+                        }
+                    }
+                }
+            }
+
+            @Suppress("DEPRECATION")
+            val result = audioManager.requestAudioFocus(
+                audioFocusListener!!,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN
+            )
+
+            if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                android.util.Log.d("AUDIO_FOCUS", "✓ Audio focus granted")
+            } else {
+                android.util.Log.d("AUDIO_FOCUS", "✗ Audio focus denied")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AUDIO_FOCUS", "Error requesting audio focus: ${e.message}")
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        try {
+            if (audioFocusListener != null) {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(audioFocusListener)
+                audioFocusListener = null
+                android.util.Log.d("AUDIO_FOCUS", "✓ Audio focus abandoned")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AUDIO_FOCUS", "Error abandoning audio focus: ${e.message}")
+        }
+    }
+
     override fun onDestroy() {
+        // Abandon audio focus when the service is destroyed
+        abandonAudioFocus()
+
         mediaSession?.run {
             val player = this.player
             if (player.currentMediaItem != null && ::playbackStateManager.isInitialized) {

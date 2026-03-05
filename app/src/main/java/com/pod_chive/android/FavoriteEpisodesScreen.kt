@@ -1,5 +1,6 @@
 package com.pod_chive.android
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -51,6 +56,108 @@ data class EpisodeWithPodcast(
     val isRss: Boolean
 )
 
+@Serializable
+private data class CachedEpisodeWithPodcast(
+    val title: String,
+    val description: String? = null,
+    val audioFilePath: String,
+    val pubDate: String,
+    val podcastTitle: String,
+    val podcastDirectory: String? = null,
+    val audioUrl: String,
+    val photoUrl: String,
+    val isRss: Boolean
+)
+
+@Serializable
+private data class FavoriteEpisodesCachePayload(
+    val favoritesSignature: String,
+    val cachedAtMs: Long,
+    val episodes: List<CachedEpisodeWithPodcast>
+)
+
+private class FavoriteEpisodesPageCache(context: Context) {
+    private val prefs = context.getSharedPreferences("favorite_episodes_cache", Context.MODE_PRIVATE)
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun load(favoritesSignature: String, ttlMs: Long): List<EpisodeWithPodcast>? {
+        val raw = prefs.getString("payload", null) ?: return null
+        return try {
+            val payload = json.decodeFromString<FavoriteEpisodesCachePayload>(raw)
+            val notExpired = System.currentTimeMillis() - payload.cachedAtMs <= ttlMs
+            if (!notExpired || payload.favoritesSignature != favoritesSignature) return null
+            payload.episodes.map { it.toEpisodeWithPodcast() }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun save(favoritesSignature: String, episodes: List<EpisodeWithPodcast>) {
+        val payload = FavoriteEpisodesCachePayload(
+            favoritesSignature = favoritesSignature,
+            cachedAtMs = System.currentTimeMillis(),
+            episodes = episodes.map { it.toCachedEpisode() }
+        )
+        prefs.edit().putString("payload", json.encodeToString(payload)).apply()
+    }
+
+    private fun CachedEpisodeWithPodcast.toEpisodeWithPodcast(): EpisodeWithPodcast {
+        return EpisodeWithPodcast(
+            episode = Episode(
+                title = title,
+                description = description,
+                audioFilePath = audioFilePath,
+                pubDate = pubDate
+            ),
+            podcastTitle = podcastTitle,
+            podcastDirectory = podcastDirectory,
+            audioUrl = audioUrl,
+            photoUrl = photoUrl,
+            isRss = isRss
+        )
+    }
+
+    private fun EpisodeWithPodcast.toCachedEpisode(): CachedEpisodeWithPodcast {
+        return CachedEpisodeWithPodcast(
+            title = episode.title,
+            description = episode.description,
+            audioFilePath = episode.audioFilePath,
+            pubDate = episode.pubDate,
+            podcastTitle = podcastTitle,
+            podcastDirectory = podcastDirectory,
+            audioUrl = audioUrl,
+            photoUrl = photoUrl,
+            isRss = isRss
+        )
+    }
+}
+
+private fun buildFavoritesSignature(favorites: List<com.pod_chive.android.database.FavoritePodcast>): String {
+    return favorites
+        .map { "${it.feedLink}|${it.title}|${it.imageLocation}" }
+        .sorted()
+        .joinToString(";")
+}
+
+private fun parseEpisodeTimeMillis(pubDate: String): Long {
+    return try {
+        val podchiveFormat = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.ENGLISH)
+        podchiveFormat.parse(pubDate)?.time ?: 0L
+    } catch (_: Exception) {
+        try {
+            val rssFormat = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH)
+            rssFormat.parse(pubDate)?.time ?: 0L
+        } catch (_: Exception) {
+            try {
+                val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH)
+                isoFormat.parse(pubDate)?.time ?: 0L
+            } catch (_: Exception) {
+                0L
+            }
+        }
+    }
+}
+
 @Composable
 fun FavoriteEpisodesScreen(navController: NavController) {
     val context = LocalContext.current
@@ -59,18 +166,29 @@ fun FavoriteEpisodesScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        isLoading = true
         errorMessage = null
 
         try {
             val repository = FavoritePodcastRepository(context)
-            val favorites = withContext(Dispatchers.IO) {
-                repository.getAllFavorites()
-            }
+            val pageCache = FavoriteEpisodesPageCache(context)
+            val favorites = withContext(Dispatchers.IO) { repository.getAllFavorites() }
 
             if (favorites.isEmpty()) {
+                episodes = emptyList()
                 isLoading = false
                 return@LaunchedEffect
+            }
+
+            val favoritesSignature = buildFavoritesSignature(favorites)
+            val cachedEpisodes = withContext(Dispatchers.IO) {
+                pageCache.load(favoritesSignature = favoritesSignature, ttlMs = 20 * 60 * 1000)
+            }
+
+            if (!cachedEpisodes.isNullOrEmpty()) {
+                episodes = cachedEpisodes
+                isLoading = false
+            } else {
+                isLoading = true
             }
 
             // Fetch episodes from all favorite podcasts concurrently
@@ -121,31 +239,16 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                 }.awaitAll().flatten()
             }
 
-            // Sort by date, newest first
-            episodes = allEpisodes.sortedByDescending { episodeWithPodcast ->
-                try {
-                    // Try pod-chive server format first: "2026/02/27 20:55"
-                    val podchiveFormat = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.ENGLISH)
-                    podchiveFormat.parse(episodeWithPodcast.episode.pubDate)?.time
-                } catch (e: Exception) {
-                    // If parsing fails, try RSS format
-                    try {
-                        val rssFormat = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH)
-                        rssFormat.parse(episodeWithPodcast.episode.pubDate)?.time
-                    } catch (e: Exception) {
-                        // If that fails, try ISO format
-                        try {
-                            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH)
-                            isoFormat.parse(episodeWithPodcast.episode.pubDate)?.time
-                        } catch (e: Exception) {
-                            null // Return null if all parsing fails
-                        }
-                    }
-                } ?: 0L // Default to epoch if all parsing fails
-            }
+            val sortedEpisodes = allEpisodes.sortedByDescending { parseEpisodeTimeMillis(it.episode.pubDate) }
+            episodes = sortedEpisodes
 
+            withContext(Dispatchers.IO) {
+                pageCache.save(favoritesSignature, sortedEpisodes)
+            }
         } catch (e: Exception) {
-            errorMessage = "Error loading episodes: ${e.message}"
+            if (episodes.isEmpty()) {
+                errorMessage = "Error loading episodes: ${e.message}"
+            }
             android.util.Log.e("FavoriteEpisodes", "Error: ${e.message}", e)
         } finally {
             isLoading = false
@@ -245,6 +348,3 @@ fun FavoriteEpisodesScreen(navController: NavController) {
         }
     }
 }
-
-
-
