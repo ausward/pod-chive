@@ -462,16 +462,7 @@ fun AudioPlayer(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-//            IconButton(onClick = {
-//                navController.navigate("debug_playback")
-//            }) {
-//                Icon(
-//                    painter = painterResource(R.drawable.outline_forward_30_24),
-//                    contentDescription = "Debug",
-//                    tint = MaterialTheme.colorScheme.onSurface,
-//                    modifier = Modifier.size(24.dp)
-//                )
-//            }
+
             IconButton(onClick = {
                 navController.navigate("queue")
             }) {

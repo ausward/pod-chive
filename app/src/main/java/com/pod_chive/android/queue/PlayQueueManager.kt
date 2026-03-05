@@ -35,8 +35,20 @@ class PlayQueueManager(context: Context) {
 
     fun removeFromQueue(itemId: String) {
         val queue = getQueue().toMutableList()
-        queue.removeAll { it.id == itemId }
+        val currentIndex = getCurrentIndex()
+        val removedIndex = queue.indexOfFirst { it.id == itemId }
+        if (removedIndex == -1) return
+
+        queue.removeAt(removedIndex)
         saveQueue(queue)
+
+        val newIndex = when {
+            queue.isEmpty() -> 0
+            removedIndex < currentIndex -> currentIndex - 1
+            currentIndex >= queue.size -> queue.lastIndex
+            else -> currentIndex
+        }
+        setCurrentIndex(newIndex.coerceAtLeast(0))
     }
 
     fun getQueue(): List<QueueItem> {
@@ -55,11 +67,20 @@ class PlayQueueManager(context: Context) {
 
     fun moveItem(fromIndex: Int, toIndex: Int) {
         val queue = getQueue().toMutableList()
-        if (fromIndex in queue.indices && toIndex in queue.indices) {
-            val item = queue.removeAt(fromIndex)
-            queue.add(toIndex, item)
-            saveQueue(queue)
+        if (fromIndex !in queue.indices || toIndex !in queue.indices || fromIndex == toIndex) return
+
+        val item = queue.removeAt(fromIndex)
+        queue.add(toIndex, item)
+        saveQueue(queue)
+
+        val currentIndex = getCurrentIndex()
+        val newCurrentIndex = when {
+            currentIndex == fromIndex -> toIndex
+            fromIndex < currentIndex && toIndex >= currentIndex -> currentIndex - 1
+            fromIndex > currentIndex && toIndex <= currentIndex -> currentIndex + 1
+            else -> currentIndex
         }
+        setCurrentIndex(newCurrentIndex.coerceIn(0, queue.lastIndex))
     }
 
     fun moveToTop(itemId: String) {
@@ -113,15 +134,32 @@ class PlayQueueManager(context: Context) {
         if (currentIndex in queue.indices) {
             queue.removeAt(currentIndex)
             saveQueue(queue)
-            // Keep the same index, which now points to the next item
-            // (or past the end if we removed the last item)
+
+            val newIndex = when {
+                queue.isEmpty() -> 0
+                currentIndex >= queue.size -> queue.lastIndex
+                else -> currentIndex
+            }
+            setCurrentIndex(newIndex)
         }
     }
 
     fun removeByAudioUrl(audioUrl: String) {
         val queue = getQueue().toMutableList()
+        val currentIndex = getCurrentIndex()
+        val removedBeforeOrAtCurrent = queue.withIndex()
+            .filter { it.value.audioUrl == audioUrl && it.index <= currentIndex }
+            .size
+
         queue.removeAll { it.audioUrl == audioUrl }
         saveQueue(queue)
+
+        val newIndex = when {
+            queue.isEmpty() -> 0
+            removedBeforeOrAtCurrent == 0 -> currentIndex.coerceAtMost(queue.lastIndex)
+            else -> (currentIndex - removedBeforeOrAtCurrent).coerceIn(0, queue.lastIndex)
+        }
+        setCurrentIndex(newIndex)
     }
 
     private fun saveQueue(queue: List<QueueItem>) {
@@ -141,7 +179,3 @@ class PlayQueueManager(context: Context) {
         }
     }
 }
-
-
-
-

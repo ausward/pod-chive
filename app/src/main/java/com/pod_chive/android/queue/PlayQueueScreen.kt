@@ -1,12 +1,16 @@
 package com.pod_chive.android.queue
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
@@ -41,6 +45,8 @@ import com.pod_chive.android.PlaybackService
 import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
+import androidx.compose.ui.input.pointer.pointerInput
 
 @OptIn(ExperimentalGlideComposeApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +59,7 @@ fun PlayQueueScreen(navController: NavController) {
     var playbackStates by remember { mutableStateOf<Map<String, PlaybackState>>(emptyMap()) }
     val coroutineScope = rememberCoroutineScope()
     var controller by remember { mutableStateOf<MediaController?>(null) }
+    var revealedRowId by remember { mutableStateOf<String?>(null) }
 
     // Connect to MediaController
     LaunchedEffect(Unit) {
@@ -67,6 +74,7 @@ fun PlayQueueScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         while (true) {
             delay(500)
+
             queueItems = queueManager.getQueue()
             currentIndex = queueManager.getCurrentIndex()
 
@@ -146,12 +154,58 @@ fun PlayQueueScreen(navController: NavController) {
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                itemsIndexed(queueItems) { index, item ->
+                itemsIndexed(
+                    items = queueItems,
+                    key = { _, item -> item.id }
+                ) { index, item ->
                     val playbackState = playbackStates[item.audioUrl]
                     QueueItemRow(
                         item = item,
                         isCurrentlyPlaying = index == currentIndex,
                         playbackState = playbackState,
+                        isActionsRevealed = revealedRowId == item.id,
+                        onRevealActions = { revealedRowId = item.id },
+                        onHideActions = { if (revealedRowId == item.id) revealedRowId = null },
+                        onMoveUp = {
+                            if (index <= 0) return@QueueItemRow
+                            coroutineScope.launch(Dispatchers.IO) {
+                                queueManager.moveItem(index, index - 1)
+                                withContext(Dispatchers.Main) {
+                                    queueItems = queueManager.getQueue()
+                                    currentIndex = queueManager.getCurrentIndex()
+                                }
+                            }
+                        },
+                        onMoveDown = {
+                            if (index >= queueItems.lastIndex) return@QueueItemRow
+                            coroutineScope.launch(Dispatchers.IO) {
+                                queueManager.moveItem(index, index + 1)
+                                withContext(Dispatchers.Main) {
+                                    queueItems = queueManager.getQueue()
+                                    currentIndex = queueManager.getCurrentIndex()
+                                }
+                            }
+                        },
+                        onMoveTop = {
+                            if (index <= 0) return@QueueItemRow
+                            coroutineScope.launch(Dispatchers.IO) {
+                                queueManager.moveItem(index, 0)
+                                withContext(Dispatchers.Main) {
+                                    queueItems = queueManager.getQueue()
+                                    currentIndex = queueManager.getCurrentIndex()
+                                }
+                            }
+                        },
+                        onMoveBottom = {
+                            if (index >= queueItems.lastIndex) return@QueueItemRow
+                            coroutineScope.launch(Dispatchers.IO) {
+                                queueManager.moveItem(index, queueItems.lastIndex)
+                                withContext(Dispatchers.Main) {
+                                    queueItems = queueManager.getQueue()
+                                    currentIndex = queueManager.getCurrentIndex()
+                                }
+                            }
+                        },
                         onPlay = {
                             val player = controller?: return@QueueItemRow
 
@@ -200,6 +254,7 @@ fun PlayQueueScreen(navController: NavController) {
                             }
                         }
                     )
+
                     if (index < queueItems.size - 1) {
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant,
@@ -218,6 +273,13 @@ fun QueueItemRow(
     item: QueueItem,
     isCurrentlyPlaying: Boolean,
     playbackState: PlaybackState?,
+    isActionsRevealed: Boolean,
+    onRevealActions: () -> Unit,
+    onHideActions: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onMoveTop: () -> Unit,
+    onMoveBottom: () -> Unit,
     onPlay: () -> Unit,
     onRemove: () -> Unit
 ) {
@@ -234,10 +296,65 @@ fun QueueItemRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .pointerInput(item.id) {
+                    var totalDragX = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { totalDragX = 0f },
+                        onHorizontalDrag = { change, dragAmount ->
+                            totalDragX += dragAmount
+                            if (abs(totalDragX) > 6f) change.consume()
+                        },
+                        onDragEnd = {
+                            when {
+                                totalDragX > 80f -> onRevealActions()
+                                totalDragX < -80f -> onHideActions()
+                            }
+                        }
+                    )
+                }
                 .clickable { onPlay() }
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (isActionsRevealed) {
+                Column(
+                    modifier = Modifier.padding(end = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.combinedClickable(
+                            onClick = onMoveUp,
+                            onLongClick = onMoveTop
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowUp,
+                            contentDescription = "Move up (hold for top)",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(6.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.combinedClickable(
+                            onClick = onMoveDown,
+                            onLongClick = onMoveBottom
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowDown,
+                            contentDescription = "Move down (hold for bottom)",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(6.dp)
+                        )
+                    }
+                }
+            }
+
             GlideImage(
                 model = item.photoUrl,
                 contentDescription = "Episode artwork",

@@ -8,6 +8,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.filled.PlayArrow
 import android.content.ComponentName
 import android.net.Uri
+import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.widget.TextView
 import androidx.compose.ui.viewinterop.AndroidView
@@ -644,6 +645,7 @@ fun HtmlText(html: String, modifier: Modifier = Modifier, maxLines: Int = Int.MA
         modifier = modifier,
         factory = { context ->
             TextView(context).apply {
+                movementMethod = LinkMovementMethod.getInstance()
                 this.maxLines = maxLines
                 // Optional: Adjust text size or color to match your theme
                 textSize = 16f
