@@ -2,12 +2,12 @@ package com.pod_chive.android
 
 import android.annotation.SuppressLint
 import android.content.ComponentName
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.sharp.PlaylistPlay
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -56,7 +58,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -65,11 +66,11 @@ import androidx.media3.session.SessionToken
 import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
-import com.bumptech.glide.integration.compose.placeholder
 import com.google.common.util.concurrent.MoreExecutors
 import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.net.URL
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -82,7 +83,9 @@ fun PlayPod(
     audioUrl: String? = null,
     title: String? = null,
     photoUrl: String? = null,
-    creator: String? = null
+    creator: String? = null,
+    desc: String? = null,
+    transcripturl: String? = null
 ) {
     // Default values if none provided (for testing or if navigating directly to the tab)
     var finalAudioUrl  by remember { mutableStateOf(audioUrl ?: " ") }
@@ -91,6 +94,19 @@ fun PlayPod(
     var finalCreator  by remember { mutableStateOf(creator ?: " ") }
     var controller by remember { mutableStateOf<MediaController?>(null) }
     val context = LocalContext.current
+    val finalDesc = desc ?: ""
+    Log.e("PLAYPOD", "desc: $finalDesc")
+    var transcript : String? = null
+    transcript = if (transcripturl != null && transcripturl != "") {
+        URL(transcripturl).readText()
+    }
+    else {
+        ""
+    }
+
+
+
+
 
     BackHandler(enabled = navController.previousBackStackEntry != null) {
         navController.navigateUp()
@@ -167,7 +183,9 @@ fun PlayPod(
             title = finalTitle,
             photoUrl = finalPhotoUrl,
             creator = finalCreator,
-            navController = navController
+            navController = navController,
+            desc = finalDesc,
+            transcript = transcript
         )
         // MiniPlayerControls()
     }
@@ -293,7 +311,9 @@ fun AudioPlayer(
     creator: String,
     title: String,
     photoUrl: String,
-    navController: NavController
+    navController: NavController,
+    desc: String? = null,
+    transcript: String? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -446,7 +466,7 @@ fun AudioPlayer(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0F0F0F)) // Deep charcoal/black
-            .padding(24.dp),
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val configuration = LocalConfiguration.current
@@ -459,7 +479,9 @@ fun AudioPlayer(
 
         // Queue button at top right
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
             horizontalArrangement = Arrangement.End
         ) {
 
@@ -499,13 +521,14 @@ fun AudioPlayer(
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            maxLines = 2
+            maxLines = 2,
+            modifier = Modifier.padding(horizontal = 24.dp)
         )
         Text(
             text = creator,
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier.padding(top = 4.dp, start = 24.dp, end = 24.dp)
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -526,9 +549,15 @@ fun AudioPlayer(
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.primary
-            ), valueRange = 0f..1f
+            ), valueRange = 0f..1f,
+            modifier = Modifier.padding(horizontal = 24.dp)
         )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Text(formatDuration(currentPosition), color = Color.Gray, style = MaterialTheme.typography.labelSmall)
             Text(formatDuration(duration), color = Color.Gray, style = MaterialTheme.typography.labelSmall)
         }
@@ -537,7 +566,9 @@ fun AudioPlayer(
 
         // --- Controls ---
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -577,7 +608,7 @@ fun AudioPlayer(
         Surface(
             color = Color(0xFF1E1E1E),
             shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 16.dp, start = 24.dp, end = 24.dp)
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -725,6 +756,113 @@ fun AudioPlayer(
                 }
             }
         }
+
+        // --- Description & Transcript Section ---
+        var episodeDescription by remember { mutableStateOf<String?>(null) }
+        var episodeTranscript by remember { mutableStateOf<String?>(null) }
+        var isLoadingDetails by remember { mutableStateOf(false) }
+
+        // Try to fetch episode details from the currently playing media item
+        LaunchedEffect(mediaController?.currentMediaItem?.mediaId) {
+            val currentMediaItem = mediaController?.currentMediaItem
+            if (currentMediaItem != null) {
+                // Check if we can extract directory from audioUrl to fetch episode data
+                val mediaId = currentMediaItem.mediaId
+
+                // If it's from our server (contains pod-chive.com), try to fetch details
+                if (mediaId.contains("pod-chive.com")) {
+                    isLoadingDetails = true
+                    try {
+                        // Extract directory from URL like https://pod-chive.com/PodcastName/episode.mp3
+                        val urlParts = mediaId.split("/")
+                        if (urlParts.size >= 4) {
+                            val directory = urlParts[3]
+
+                            // Fetch podcast details
+                            val podcastData = com.pod_chive.android.api.RetrofitClientFront.getInstance(context)
+                                .getPodDetails(directory)
+
+                            // Find matching episode by audio file path
+                            val matchingEpisode = podcastData.episodes?.find { episode ->
+                                mediaId.endsWith(episode.audioFilePath)
+                            }
+
+                            episodeDescription = matchingEpisode?.description
+                            // Note: transcript would need to be added to Episode data class
+                            // For now, we'll show a placeholder
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("PLAYPOD", "Error fetching episode details: ${e.message}")
+                    } finally {
+                        isLoadingDetails = false
+                    }
+                }
+            }
+        }
+
+        // Show description if available
+        if (!episodeDescription.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Surface(
+                color = Color(0xFF1E1E1E),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Description",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Use HtmlText composable from home.kt
+                    HtmlText(
+                        html = episodeDescription ?: "",
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        // Transcript section (placeholder for future implementation)
+        if (!episodeTranscript.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Surface(
+                color = Color(0xFF1E1E1E),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Transcript",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = episodeTranscript ?: "",
+                        color = Color.LightGray,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+
+        // Bottom padding
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

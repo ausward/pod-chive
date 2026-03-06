@@ -2,10 +2,11 @@ package com.pod_chive.android.queue
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
+import androidx.core.content.edit
 
 @Serializable
 data class QueueItem(
@@ -15,7 +16,8 @@ data class QueueItem(
     val photoUrl: String,
     val creator: String,
     val description: String? = null,
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    val transcript: String? = null
 )
 
 class PlayQueueManager(context: Context) {
@@ -56,6 +58,7 @@ class PlayQueueManager(context: Context) {
             val jsonStr = prefs.getString(QUEUE_KEY, "[]") ?: "[]"
             json.decodeFromString<List<QueueItem>>(jsonStr)
         } catch (e: Exception) {
+            Log.e("PlayQueueManager", "Error getting queue", e)
             emptyList()
         }
     }
@@ -99,7 +102,7 @@ class PlayQueueManager(context: Context) {
     }
 
     fun setCurrentIndex(index: Int) {
-        prefs.edit().putInt(CURRENT_INDEX_KEY, index).apply()
+        prefs.edit { putInt(CURRENT_INDEX_KEY, index) }
     }
 
     fun getNextItem(): QueueItem? {
@@ -165,14 +168,14 @@ class PlayQueueManager(context: Context) {
     private fun saveQueue(queue: List<QueueItem>) {
         try {
             val jsonString = json.encodeToString(queue)
-            prefs.edit().putString(QUEUE_KEY, jsonString).apply()
+            prefs.edit { putString(QUEUE_KEY, jsonString) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     companion object {
-        fun generateId(title: String, audioUrl: String): String {
+        fun generateId( audioUrl: String): String {
             // Use only audioUrl hash for ID so the same episode always has the same ID
             // This prevents duplicates even if added at different times
             return "episode_${audioUrl.hashCode()}"

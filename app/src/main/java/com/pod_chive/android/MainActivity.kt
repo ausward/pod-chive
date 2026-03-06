@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             composable(
-                                route = "playpod?audioUrl={audioUrl}&title={title}&photoUrl={photoUrl}&creator={creator}",
+                                route = "playpod?audioUrl={audioUrl}&title={title}&photoUrl={photoUrl}&creator={creator}&desc={desc}&transcripturl={transcripturl}",
                                 arguments = listOf(
                                     navArgument("audioUrl") { type = NavType.StringType; nullable = true; defaultValue = null },
                                     navArgument("title") { type = NavType.StringType; nullable = true; defaultValue = null },
@@ -119,12 +119,16 @@ class MainActivity : ComponentActivity() {
                                 val title = backStackEntry.arguments?.getString("title")
                                 val photoUrl = backStackEntry.arguments?.getString("photoUrl")
                                 val creator = backStackEntry.arguments?.getString("creator")
+                                val desc = backStackEntry.arguments?.getString("desc")
+                                val transcripturl = backStackEntry.arguments?.getString("transcripturl")
                                 PlayPod(
                                     navController = navController,
                                     audioUrl = audioUrl,
                                     title = title,
                                     photoUrl = photoUrl,
-                                    creator = creator
+                                    creator = creator,
+                                    desc = desc,
+                                    transcripturl = transcripturl
                                 )
                             }
                             composable("details/{podcastTitle}") { backStackEntry ->

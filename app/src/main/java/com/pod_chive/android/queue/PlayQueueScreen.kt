@@ -239,8 +239,10 @@ fun PlayQueueScreen(navController: NavController) {
                             val encodedTitle = Uri.encode(item.title)
                             val encodedPhotoUrl = Uri.encode(item.photoUrl)
                             val encodedCreator = Uri.encode(item.creator)
+                            val encodedDescription = Uri.encode(item.description)
+                            val encodededtrans = Uri.encode(item.transcript)
                             navController.navigate(
-                                "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator"
+                                "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcripturl=$encodededtrans"
                             )
 
                         },

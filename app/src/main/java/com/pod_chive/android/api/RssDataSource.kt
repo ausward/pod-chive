@@ -1,6 +1,5 @@
 package com.pod_chive.android.api
 
-import android.util.Log
 import com.prof18.rssparser.RssParser
 import com.prof18.rssparser.model.RssChannel
 import com.prof18.rssparser.model.RssItem
@@ -16,7 +15,7 @@ object RssDataSource {
             val channel = parser.getRssChannel(rssFeedUrl)
 //            Log.d("RssDataSource", "Channel: $channel")
             val homeItem = channel.toHomeItem(rssFeedUrl)
-            val episodes = channel.items?.mapNotNull { it.toEpisode() }
+            val episodes = channel.items.mapNotNull { it.toEpisode() }
 //        Log.d("RssDataSource", "Episodes: $episodes")
             RssFeedResult.Success(homeItem, episodes)
         } catch (e: Exception) {
@@ -49,7 +48,8 @@ object RssDataSource {
             title = this.title ?: "Untitled Episode",
             description = this.content ?: this.description, // Prioritize content:encoded
             audioFilePath = audioUrl,
-            pubDate = this.pubDate ?: ""
+            pubDate = this.pubDate ?: "",
+            transcript = this.commentsUrl ?: ""
         )
 //        Log.d("RssDataSource", "Episode: $temp")
         return temp

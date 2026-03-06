@@ -14,6 +14,7 @@ import android.widget.TextView
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.content.MediaType.Companion.HtmlText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -466,12 +467,13 @@ fun EpisodeRow(
     val addToQueue: (String, String) -> Unit = { audioUrl, photoUrl ->
         val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
         val queueItem = com.pod_chive.android.queue.QueueItem(
-            id = com.pod_chive.android.queue.PlayQueueManager.generateId(episode.title, audioUrl),
+            id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
             title = episode.title,
             audioUrl = audioUrl,
             photoUrl = photoUrl,
             creator = podcastTitle ?: "Unknown",
-            description = episode.description
+            description = episode.description,
+            transcript = episode.transcript,
         )
         queueManager.addToQueue(queueItem)
         Log.d("QUEUE", "Added to queue: ${episode.title}")
@@ -507,15 +509,13 @@ fun EpisodeRow(
                 // Add episode to queue at the top
                 val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
                 val queueItem = com.pod_chive.android.queue.QueueItem(
-                    id = com.pod_chive.android.queue.PlayQueueManager.generateId(
-                        episode.title,
-                        audioUrl
-                    ),
+                    id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
                     title = episode.title,
                     audioUrl = audioUrl,
                     photoUrl = photoUrl,
                     creator = podcastTitle ?: "Unknown",
-                    description = episode.description
+                    description = episode.description,
+                    transcript = episode.transcript,
                 )
                 queueManager.addToQueue(queueItem)
                 queueManager.moveToTop(queueItem.id)
@@ -525,8 +525,11 @@ fun EpisodeRow(
                 val encodedTitle = Uri.encode(episode.title)
                 val encodedPhotoUrl = Uri.encode(photoUrl)
                 val encodedCreator = Uri.encode(podcastTitle ?: "")
+                val encodedDescription = Uri.encode(episode.description ?: "")
+                val encodedTranscript = Uri.encode(episode.transcript ?: "")
+
                 navController.navigate(
-                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator"
+                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcript=$encodedTranscript"
                 )
             }
         }
@@ -567,7 +570,8 @@ fun EpisodeRow(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(text= episode.pubDate.substring(0, 16),
+                Text(
+                    text = episode.pubDate.substring(0, 16),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
@@ -582,11 +586,14 @@ fun EpisodeRow(
                 if (state.duration > 0) {
 //                     var progressPercent = 100f * state.currentPosition.toFloat() / state.duration.toFloat()
 //                    (state.currentPosition.toFloat() / state.duration.toFloat() * 100f)
-
-                    PlayBackProgressVis(state)
-
-                } else {
-
+                    if (state.currentPosition >= state.duration - 50) {
+                        Text(text = "Completed",
+                            color = MaterialTheme.colorScheme.tertiary,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        PlayBackProgressVis(state)
+                    }
                 }
             }
 
@@ -655,3 +662,4 @@ fun HtmlText(html: String, modifier: Modifier = Modifier, maxLines: Int = Int.MA
         update = { it.text = HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_COMPACT) }
     )
 }
+

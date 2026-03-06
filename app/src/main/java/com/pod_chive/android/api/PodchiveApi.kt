@@ -182,5 +182,8 @@ data class Episode(
     val audioFilePath: String,
 
     @SerializedName("pubDate")
-    val pubDate: String
+    val pubDate: String,
+
+    @SerializedName("transcript")
+    val transcript: String?
 ) : Serializable

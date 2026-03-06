@@ -60,6 +60,9 @@ import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.api.RssDataSource
 import com.pod_chive.android.api.RssFeedResult
+import com.pod_chive.android.api.homeList
+import com.pod_chive.android.database.FavoritePodcast
+import com.pod_chive.android.database.FavoritePodcastRepository
 import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -128,8 +131,9 @@ fun findPod(SearchString: String, navController: NavController) { // Added NavCo
                     is RssFeedResult.Success -> {
                         Log.d("PodchiveAPI", "result: ${result.podcast.podcast_title} ${result.episodes?.size}")
                         if (!result.episodes.isNullOrEmpty()) {
-                            Log.d("PodchiveAPI", "Episodes: ${result.episodes.size}")
+//                            Log.d("PodchiveAPI", "Episodes: ${result.episodes.size}")
                             searchResults = SearchResultType.RssEpisodes(result.podcast, result.episodes)
+                            navController.navigate(result.podcast)
                         } else {
                             Log.d("PodchiveAPI", "No episodes found: ${result}")
                             // If no episodes, just show the podcast summary
@@ -304,7 +308,7 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                         "PodchiveAPI",
                         "result: ${result.podcast.podcast_title} ${result.episodes?.size}"
                     )
-                    val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
+                    val repository = FavoritePodcastRepository(context)
                     isFavorite = repository.isFavorite(podcastData?.rss_url)
                     if (!result.episodes.isNullOrEmpty()) {
                         Log.d("PodchiveAPI", "Episodes: ${result.episodes.size}")
@@ -423,7 +427,7 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                     }
 
                     IconButton(onClick = {
-                        val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
+                        val repository = FavoritePodcastRepository(context)
                         GlobalScope.launch(Dispatchers.IO) {
                             if (isFavorite) {
                                 val favorite = repository.getFavoriteByFeedLink(podcastData?.rss_url)
@@ -433,7 +437,7 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                             } else {
 
                                     repository.insertFavorite(
-                                        com.pod_chive.android.database.FavoritePodcast(
+                                        FavoritePodcast(
                                             feedLink = podcastData?.rss_url ?: "",
                                             imageLocation = podcastData?.cover_image_url ?: "",
                                             description = podcastData?.description ?: "",

@@ -66,7 +66,8 @@ private data class CachedEpisodeWithPodcast(
     val podcastDirectory: String? = null,
     val audioUrl: String,
     val photoUrl: String,
-    val isRss: Boolean
+    val isRss: Boolean,
+    val transcript: String? = null
 )
 
 @Serializable
@@ -107,7 +108,8 @@ private class FavoriteEpisodesPageCache(context: Context) {
                 title = title,
                 description = description,
                 audioFilePath = audioFilePath,
-                pubDate = pubDate
+                pubDate = pubDate,
+                transcript = transcript
             ),
             podcastTitle = podcastTitle,
             podcastDirectory = podcastDirectory,
