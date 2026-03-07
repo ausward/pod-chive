@@ -53,7 +53,7 @@ import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
-import com.pod_chive.android.api.Episode
+import com.pod_chive.android.api.EpisodeDC
 import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RssDataSource
 import com.pod_chive.android.api.RssFeedResult
@@ -74,7 +74,7 @@ sealed class SearchResultType : Serializable {
     }
 
     data class Podcasts(val podcasts: ArrayList<homeItem>) : SearchResultType()
-    data class RssEpisodes(val podcastSummary: homeItem, val episodes: List<Episode>) : SearchResultType()
+    data class RssEpisodes(val podcastSummary: homeItem, val episodeDCS: List<EpisodeDC>) : SearchResultType()
     data class Error(val message: String) : SearchResultType()
 }
 
@@ -130,10 +130,10 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 // Assume it's an RSS URL
                 when (val result = RssDataSource.parseRssFeed(SearchString)) {
                     is RssFeedResult.Success -> {
-                        Log.d("PodchiveAPI", "result: ${result.podcast.podcast_title} ${result.episodes?.size}")
-                        if (!result.episodes.isNullOrEmpty()) {
+                        Log.d("PodchiveAPI", "result: ${result.podcast.podcast_title} ${result.episodeDCS?.size}")
+                        if (!result.episodeDCS.isNullOrEmpty()) {
 //                            Log.d("PodchiveAPI", "Episodes: ${result.episodes.size}")
-                            searchResults = SearchResultType.RssEpisodes(result.podcast, result.episodes)
+                            searchResults = SearchResultType.RssEpisodes(result.podcast, result.episodeDCS)
                             navController.navigate(result.podcast)
                         } else {
                             Log.d("PodchiveAPI", "No episodes found: ${result}")
@@ -230,8 +230,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 }
             }
         }
-//    }
-//}
+
 
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
@@ -284,7 +283,7 @@ fun SearchItemView(podcast: homeItem, navController: NavController) {
 fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
     val context = LocalContext.current
     var podcastData by remember { mutableStateOf<homeItem?>(null) }
-    var epData by remember { mutableStateOf<List<Episode>?>(null) }
+    var epData by remember { mutableStateOf<List<EpisodeDC>?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     val scrollState = rememberScrollState()
     val showStickyTitle = scrollState.value > 320
@@ -305,18 +304,18 @@ fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
 
             when (val result = RssDataSource.parseRssFeed(homeitems.rss_url)) {
                 is RssFeedResult.Success -> {
-                    epData = result.episodes
+                    epData = result.episodeDCS
                     podcastData = result.podcast
                     Log.d(
                         "PodchiveAPI",
-                        "result: ${result.podcast.podcast_title} ${result.episodes?.size}"
+                        "result: ${result.podcast.podcast_title} ${result.episodeDCS?.size}"
                     )
                     val repository = FavoritePodcastRepository(context)
                     isFavorite = repository.isFavorite(podcastData?.rss_url)
-                    if (!result.episodes.isNullOrEmpty()) {
-                        Log.d("PodchiveAPI", "Episodes: ${result.episodes.size}")
+                    if (!result.episodeDCS.isNullOrEmpty()) {
+                        Log.d("PodchiveAPI", "Episodes: ${result.episodeDCS.size}")
                         searchResults =
-                            SearchResultType.RssEpisodes(result.podcast, result.episodes)
+                            SearchResultType.RssEpisodes(result.podcast, result.episodeDCS)
                     } else {
                         Log.d("PodchiveAPI", "No episodes found: ${result}")
                         // If no episodes, just show the podcast summary

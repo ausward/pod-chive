@@ -40,11 +40,11 @@ object RssDataSource {
     }
 
     // Helper function to convert RssItem to Episode
-    private fun RssItem.toEpisode(): Episode? {
+    private fun RssItem.toEpisode(): EpisodeDC? {
         // Ensure we have an audio URL from the enclosure
         val audioUrl = this.rawEnclosure?.url ?: return null
 
-        val temp = Episode(
+        val temp = EpisodeDC(
             title = this.title ?: "Untitled Episode",
             description = this.content ?: this.description, // Prioritize content:encoded
             audioFilePath = audioUrl,
@@ -57,6 +57,6 @@ object RssDataSource {
 }
 
 sealed class RssFeedResult : Serializable {
-    data class Success(val podcast: homeItem, val episodes: List<Episode>?) : RssFeedResult() // Modified
+    data class Success(val podcast: homeItem, val episodeDCS: List<EpisodeDC>?) : RssFeedResult() // Modified
     data class Error(val message: String) : RssFeedResult()
 }

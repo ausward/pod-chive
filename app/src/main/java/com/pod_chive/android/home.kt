@@ -74,7 +74,7 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.google.common.util.concurrent.MoreExecutors
-import com.pod_chive.android.api.Episode
+import com.pod_chive.android.api.EpisodeDC
 import com.pod_chive.android.api.PodcastDetailResponse
 import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RetrofitClientFront
@@ -295,7 +295,7 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
 
             // --- Episode List ---
             // Since we aren't in a LazyColumn, we use a simple forEach
-            podcastData?.episodes?.forEach { episode ->
+            podcastData?.episodeDCS?.forEach { episode ->
                 EpisodeRow(
                     episode,
                     directory,
@@ -381,9 +381,9 @@ enum class PlaybackState { PLAYING, PAUSED, STOPPED }
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 fun EpisodeRow(
-    episode: Episode,
+    episodeDC: EpisodeDC,
     directory: String? = null,
-    podcastTitle: String?,
+    podcastSHOWTitle: String?,
     navController: NavController,
     playbackState: PlaybackState,
     AudioUrl: String? = null,
@@ -399,7 +399,7 @@ fun EpisodeRow(
     var audioUrl = ""
     var photoUrl = ""
     if (directory != null) {
-        audioUrl = "https://pod-chive.com/${episode.audioFilePath}"
+        audioUrl = "https://pod-chive.com/${episodeDC.audioFilePath}"
         photoUrl = "https://pod-chive.com/$directory/cover.webp"
     } else {
         audioUrl = AudioUrl ?: ""
@@ -419,8 +419,8 @@ fun EpisodeRow(
     }
     state = stateManager.getPlaybackState(audioUrl) ?: com.pod_chive.android.playback.PlaybackState(
         audioUrl = audioUrl,
-        title = episode.title,
-        creator = podcastTitle ?: "Unknown",
+        title = episodeDC.title,
+        creator = podcastSHOWTitle ?: "Unknown",
         photoUrl = photoUrl,
         currentPosition = 0,
         duration = 0
@@ -452,11 +452,11 @@ fun EpisodeRow(
                 }
             },
             title = {
-                Text(text = episode.title, style = MaterialTheme.typography.titleLarge)
+                Text(text = episodeDC.title, style = MaterialTheme.typography.titleLarge)
             },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    HtmlText(html = episode.description ?: "No description available.")
+                    HtmlText(html = episodeDC.description ?: "No description available.")
                 }
             }
         )
@@ -467,15 +467,15 @@ fun EpisodeRow(
         val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
         val queueItem = com.pod_chive.android.queue.QueueItem(
             id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-            title = episode.title,
+            title = episodeDC.title,
             audioUrl = audioUrl,
             photoUrl = photoUrl,
-            creator = podcastTitle ?: "Unknown",
-            description = episode.description,
-            transcript = episode.transcript,
+            creator = podcastSHOWTitle ?: "Unknown",
+            description = episodeDC.description,
+            transcript = episodeDC.transcript,
         )
         queueManager.addToQueue(queueItem)
-        Log.d("QUEUE", "Added to queue: ${episode.title}")
+        Log.d("QUEUE", "Added to queue: ${episodeDC.title}")
         android.widget.Toast.makeText(context, "Added to queue", android.widget.Toast.LENGTH_SHORT)
             .show()
     }
@@ -494,8 +494,8 @@ fun EpisodeRow(
                     .setUri(Uri.parse(audioUrl))
                     .setMediaMetadata(
                         MediaMetadata.Builder()
-                            .setTitle(episode.title)
-                            .setArtist(podcastTitle)
+                            .setTitle(episodeDC.title)
+                            .setArtist(podcastSHOWTitle)
                             .setArtworkUri(Uri.parse(photoUrl))
                             .build()
                     )
@@ -509,25 +509,25 @@ fun EpisodeRow(
                 val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
                 val queueItem = com.pod_chive.android.queue.QueueItem(
                     id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-                    title = episode.title,
+                    title = episodeDC.title,
                     audioUrl = audioUrl,
                     photoUrl = photoUrl,
-                    creator = podcastTitle ?: "Unknown",
-                    description = episode.description,
-                    transcript = episode.transcript,
-                    publishDate = episode.pubDate
+                    creator = podcastSHOWTitle ?: "Unknown",
+                    description = episodeDC.description,
+                    transcript = episodeDC.transcript,
+                    publishDate = episodeDC.pubDate
                 )
                 queueManager.addToQueue(queueItem)
                 queueManager.moveToTop(queueItem.id)
-                Log.d("QUEUE", "Added and moved to top: ${episode.title}")
+                Log.d("QUEUE", "Added and moved to top: ${episodeDC.title}")
 
                 val encodedAudioUrl = Uri.encode(audioUrl)
-                val encodedTitle = Uri.encode(episode.title)
+                val encodedTitle = Uri.encode(episodeDC.title)
                 val encodedPhotoUrl = Uri.encode(photoUrl)
-                val encodedCreator = Uri.encode(podcastTitle ?: "")
-                val encodedDescription = Uri.encode(episode.description ?: "")
-                val encodedTranscript = Uri.encode(episode.transcript ?: "")
-                val encodedDate = Uri.encode(episode.pubDate ?: "")
+                val encodedCreator = Uri.encode(podcastSHOWTitle ?: "")
+                val encodedDescription = Uri.encode(episodeDC.description ?: "")
+                val encodedTranscript = Uri.encode(episodeDC.transcript ?: "")
+                val encodedDate = Uri.encode(episodeDC.pubDate ?: "")
                 navController.navigate(
                     "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcript=$encodedTranscript&publishDate=$encodedDate"
                 )
@@ -565,13 +565,13 @@ fun EpisodeRow(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = episode.title,
+                    text = episodeDC.title,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = episode.pubDate.substring(0, 16),
+                    text = episodeDC.pubDate.substring(0, 16),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
@@ -579,15 +579,15 @@ fun EpisodeRow(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
-                if (episode.description != null) {
-                    if (episode.description.length > 60) {
+                if (episodeDC.description != null) {
+                    if (episodeDC.description.length > 60) {
                         HtmlText(
-                            html = episode.description.slice(0..60) + "...",
+                            html = episodeDC.description.slice(0..60) + "...",
                             maxLines = 2,
                         )
                     } else {
                         HtmlText(
-                            html = episode.description,
+                            html = episodeDC.description,
                             maxLines = 2,
                         )
                     }
@@ -631,7 +631,7 @@ fun EpisodeRow(
                     var audioUrl = ""
                     var photoUrl = ""
                     if (directory != null) {
-                        audioUrl = "https://pod-chive.com/${episode.audioFilePath}"
+                        audioUrl = "https://pod-chive.com/${episodeDC.audioFilePath}"
                         photoUrl = "https://pod-chive.com/$directory/cover.webp"
                     } else {
                         audioUrl = AudioUrl ?: return@IconButton

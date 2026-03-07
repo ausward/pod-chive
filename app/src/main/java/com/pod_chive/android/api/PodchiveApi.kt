@@ -168,10 +168,11 @@ data class PodcastDetailResponse(
     val podcastTitle: String,
 
     @SerializedName("Episodes")
-    val episodes: List<Episode>
+    val episodeDCS: List<EpisodeDC>
 ) : Serializable
 
-data class Episode(
+
+data class EpisodeDC(
     @SerializedName("Title")
     val title: String,
 
@@ -186,4 +187,4 @@ data class Episode(
 
     @SerializedName("transcript")
     val transcript: String?
-) : Serializable
+) : com.pod_chive.android.model.Episode(title, description, audioFilePath, pubDate, transcript), Serializable
