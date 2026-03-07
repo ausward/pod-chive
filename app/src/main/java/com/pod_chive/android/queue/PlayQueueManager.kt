@@ -3,10 +3,9 @@ package com.pod_chive.android.queue
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
-import androidx.core.content.edit
 
 @Serializable
 data class QueueItem(
@@ -17,7 +16,8 @@ data class QueueItem(
     val creator: String,
     val description: String? = null,
     val addedAt: Long = System.currentTimeMillis(),
-    val transcript: String? = null
+    val transcript: String? = null,
+    val publishDate: String? = null
 )
 
 class PlayQueueManager(context: Context) {

@@ -3,7 +3,6 @@ package com.pod_chive.android
 import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -57,22 +55,24 @@ import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.pod_chive.android.api.Episode
 import com.pod_chive.android.api.RetrofitClient
-import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.api.RssDataSource
 import com.pod_chive.android.api.RssFeedResult
-import com.pod_chive.android.api.homeList
+import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
-import com.pod_chive.android.ui.theme.PodchiveTheme
+import com.pod_chive.android.ui.components.LoadingIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import java.io.Serializable // For SearchResultType
+import java.io.Serializable
 
 
 // Sealed class for search results
 sealed class SearchResultType : Serializable {
-    object Empty : SearchResultType()
+    object Empty : SearchResultType() {
+        private fun readResolve(): Any = Empty
+    }
+
     data class Podcasts(val podcasts: ArrayList<homeItem>) : SearchResultType()
     data class RssEpisodes(val podcastSummary: homeItem, val episodes: List<Episode>) : SearchResultType()
     data class Error(val message: String) : SearchResultType()
@@ -85,7 +85,6 @@ sealed class SearchResultType : Serializable {
 @Composable
 fun PodSearchBar(onSearch: (String) -> Unit) {
     var text by rememberSaveable { mutableStateOf("") }
-
     Row(
         Modifier
             .fillMaxWidth()
@@ -98,7 +97,9 @@ fun PodSearchBar(onSearch: (String) -> Unit) {
             modifier = Modifier.weight(1f),
             singleLine = true,
             shape = RoundedCornerShape(50),
-            placeholder = { Text("Search podcasts or paste RSS URL") }
+            maxLines = 1,
+            placeholder = { Text("Keyword or RSS URL")
+            }
         )
         Spacer(modifier = Modifier.width(8.dp))
         Button(
@@ -111,7 +112,7 @@ fun PodSearchBar(onSearch: (String) -> Unit) {
 }
 
 @Composable
-fun findPod(SearchString: String, navController: NavController) { // Added NavController
+fun FindPod(SearchString: String, navController: NavController) { // Added NavController
     val context = LocalContext.current
     var searchResults by remember { mutableStateOf<SearchResultType>(SearchResultType.Empty) }
     var isLoading by remember { mutableStateOf(false) }
@@ -201,7 +202,7 @@ fun findPod(SearchString: String, navController: NavController) { // Added NavCo
                     } else {
                         LazyColumn {
                             items(currentResults.podcasts) { podcast ->
-                                searchItemView(podcast, navController)
+                                SearchItemView(podcast, navController)
                             }
                         }
                     }
@@ -234,7 +235,7 @@ fun findPod(SearchString: String, navController: NavController) { // Added NavCo
 
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-fun searchItemView(podcast: homeItem, navController: NavController) {
+fun SearchItemView(podcast: homeItem, navController: NavController) {
     // Added navController
     Row(modifier = Modifier
         .fillMaxWidth()
@@ -269,16 +270,18 @@ fun searchItemView(podcast: homeItem, navController: NavController) {
             )
         }
     }
-            PodchiveTheme() {
-            HorizontalDivider(modifier = Modifier.fillMaxWidth(), thickness = 1.dp, color = MaterialTheme.colorScheme.tertiary)
-        }
-    }
+    HorizontalDivider(
+        modifier = Modifier.fillMaxWidth(),
+        thickness = 1.dp,
+        color = MaterialTheme.colorScheme.tertiary
+    )
+}
 
 
 
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
+fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
     val context = LocalContext.current
     var podcastData by remember { mutableStateOf<homeItem?>(null) }
     var epData by remember { mutableStateOf<List<Episode>?>(null) }
@@ -292,7 +295,7 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
     var searchResults by remember { mutableStateOf<SearchResultType>(SearchResultType.Empty) }
 
     val minImageSize = 80f
-    val scrollThreshold = 500f // How fast it shrinks
+//    val scrollThreshold = 500f // How fast it shrinks
 
     val currentImageSize = (maxImageSize - (scrollState.value / 2))
         .coerceAtLeast(minImageSize).dp
@@ -332,129 +335,125 @@ fun showPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
     }
 
     if (isLoading) {
-        Box(contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(Modifier.size(600.dp))
-        }
+        LoadingIndicator()
     } else {
-        PodchiveTheme(dynamicColor = false) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState) // Standard Column scrolling
+        ) {
+            // --- Shinking Header ---
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState) // Standard Column scrolling
+                    .fillMaxWidth()
+                    .padding(top = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // --- Shinking Header ---
-                Column(
+                GlideImage(
+                    model = podcastData?.cover_image_url,
+                    contentDescription = "Cover",
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    GlideImage(
-                        model = podcastData?.cover_image_url,
-                        contentDescription = "Cover",
-                        modifier = Modifier
-                            .size(currentImageSize) // Dynamic size applied here
-                            .clip(MaterialTheme.shapes.medium),
-                        loading = placeholder(R.mipmap.shrug),
-                        failure = placeholder(R.mipmap.shrug)
-                    )
+                        .size(currentImageSize) // Dynamic size applied here
+                        .clip(MaterialTheme.shapes.medium),
+                    loading = placeholder(R.mipmap.shrug),
+                    failure = placeholder(R.mipmap.shrug)
+                )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    podcastData?.podcast_title?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.headlineLarge,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // --- Episode List ---
-                // Since we aren't in a LazyColumn, we use a simple forEach
-                epData?.forEach { episode ->
-                    EpisodeRow(
-                        episode,
-                        null,
-                        podcastData?.podcast_title,
-                        navController,
-                        PlaybackState.STOPPED,
-                        episode.audioFilePath,
-                        podcastData?.cover_image_url
-                    )
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.tertiary,
-                        thickness = 1.dp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                podcastData?.podcast_title?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.headlineLarge,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        textAlign = TextAlign.Center
                     )
                 }
             }
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = if (showStickyTitle) MaterialTheme.colorScheme.surface else Color.Transparent,
-                tonalElevation = if (showStickyTitle) 4.dp else 0.dp
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- Episode List ---
+            // Since we aren't in a LazyColumn, we use a simple forEach
+            epData?.forEach { episode ->
+                EpisodeRow(
+                    episode,
+                    null,
+                    podcastData?.podcast_title,
+                    navController,
+                    PlaybackState.STOPPED,
+                    episode.audioFilePath,
+                    podcastData?.cover_image_url
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.tertiary,
+                    thickness = 1.dp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = if (showStickyTitle) MaterialTheme.colorScheme.surface else Color.Transparent,
+            tonalElevation = if (showStickyTitle) 4.dp else 0.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .statusBarsPadding() // Handles the notch/status bar area
+                    .height(64.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .statusBarsPadding() // Handles the notch/status bar area
-                        .height(64.dp)
-                        .padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
-                    if (showStickyTitle) {
-                        Text(
-                            text = podcastData?.podcast_title ?: "",
-                            style = MaterialTheme.typography.titleLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .weight(1f)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+                if (showStickyTitle) {
+                    Text(
+                        text = podcastData?.podcast_title ?: "",
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .weight(1f)
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
 
-                    IconButton(onClick = {
-                        val repository = FavoritePodcastRepository(context)
-                        GlobalScope.launch(Dispatchers.IO) {
-                            if (isFavorite) {
-                                val favorite = repository.getFavoriteByFeedLink(podcastData?.rss_url)
-                                if (favorite != null) {
-                                    repository.deleteFavorite(favorite)
-                                }
-                            } else {
-
-                                    repository.insertFavorite(
-                                        FavoritePodcast(
-                                            feedLink = podcastData?.rss_url ?: "",
-                                            imageLocation = podcastData?.cover_image_url ?: "",
-                                            description = podcastData?.description ?: "",
-                                            title = podcastData?.podcast_title ?: ""
-                                        )
-                                    )
-
+                IconButton(onClick = {
+                    val repository = FavoritePodcastRepository(context)
+                    GlobalScope.launch(Dispatchers.IO) {
+                        if (isFavorite) {
+                            val favorite = repository.getFavoriteByFeedLink(podcastData?.rss_url)
+                            if (favorite != null) {
+                                repository.deleteFavorite(favorite)
                             }
-                            isFavorite = !isFavorite
+                        } else {
+
+                                repository.insertFavorite(
+                                    FavoritePodcast(
+                                        feedLink = podcastData?.rss_url ?: "",
+                                        imageLocation = podcastData?.cover_image_url ?: "",
+                                        description = podcastData?.description ?: "",
+                                        title = podcastData?.podcast_title ?: ""
+                                    )
+                                )
+
                         }
-                    }) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                        )
+                        isFavorite = !isFavorite
                     }
+                }) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
         }

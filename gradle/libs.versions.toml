@@ -1,24 +1,32 @@
 [versions]
 agp = "9.0.1"
-coreKtx = "1.10.1"
+compose = "1.0.0-beta08"
+coreKtx = "1.17.0"
 junit = "4.13.2"
-junitVersion = "1.1.5"
-espressoCore = "3.5.1"
-lifecycleRuntimeKtx = "2.6.1"
-activityCompose = "1.8.0"
-kotlin = "2.2.10"
-composeBom = "2024.09.00"
+junitVersion = "1.3.0"
+espressoCore = "3.7.0"
+kotlinxSerializationJson = "1.10.0"
+lifecycleRuntimeKtx = "2.10.0"
+activityCompose = "1.12.4"
+kotlin = "2.3.10"
+composeBom = "2026.02.01"
+navigationCommon = "2.9.7"
 retrofit = "3.0.0"
-media3 = "1.5.1"
+media3 = "1.9.2"
 media3Session = "1.9.2"
 navigationCompose = "2.9.7"
-uiUnit = "1.10.3"
+rssparser = "6.1.4"
+uiUnit = "1.10.4"
 material3 = "1.4.0"
-uiText = "1.10.3"
-foundationLayout = "1.10.3"
+uiText = "1.10.4"
+foundationLayout = "1.10.4"
+foundationLayoutVersion = "1.10.4"
 
 [libraries]
+androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-navigation-common = { module = "androidx.navigation:navigation-common", version.ref = "navigationCommon" }
+compose = { module = "com.github.bumptech.glide:compose", version.ref = "compose" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -32,6 +40,7 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
 androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
@@ -43,6 +52,8 @@ androidx-compose-ui-unit = { group = "androidx.compose.ui", name = "ui-unit", ve
 androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
+androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayoutVersion" }
+rssparser = { module = "com.prof18.rssparser:rssparser", version.ref = "rssparser" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

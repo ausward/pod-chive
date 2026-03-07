@@ -2,6 +2,7 @@ package com.pod_chive.android
 
 import android.annotation.SuppressLint
 import android.content.ComponentName
+import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
@@ -24,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.sharp.Help
 import androidx.compose.material.icons.automirrored.sharp.PlaylistPlay
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
@@ -54,10 +56,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -67,12 +72,17 @@ import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.google.common.util.concurrent.MoreExecutors
+import com.pod_chive.android.playback.PlaybackState
+import com.pod_chive.android.playback.PlaybackStateManager
+import com.pod_chive.android.queue.PlayQueueManager
+import com.pod_chive.android.ui.components.Information
 import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URL
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import androidx.core.net.toUri
 
 @ExperimentalGlideComposeApi
 @OptIn(ExperimentalGlideComposeApi::class)
@@ -85,7 +95,8 @@ fun PlayPod(
     photoUrl: String? = null,
     creator: String? = null,
     desc: String? = null,
-    transcripturl: String? = null
+    transcripturl: String? = null,
+    pubdate: String? = null
 ) {
     // Default values if none provided (for testing or if navigating directly to the tab)
     var finalAudioUrl  by remember { mutableStateOf(audioUrl ?: " ") }
@@ -94,11 +105,17 @@ fun PlayPod(
     var finalCreator  by remember { mutableStateOf(creator ?: " ") }
     var controller by remember { mutableStateOf<MediaController?>(null) }
     val context = LocalContext.current
-    val finalDesc = desc ?: ""
+    var finalDesc: String? by remember { mutableStateOf(desc ?: "") }
+    var pubdate: String? by remember { mutableStateOf(pubdate) }
     Log.e("PLAYPOD", "desc: $finalDesc")
-    var transcript : String? = null
-    transcript = if (transcripturl != null && transcripturl != "") {
-        URL(transcripturl).readText()
+    var transcript = if (transcripturl != null && transcripturl != "") {
+        if (transcripturl.contains("http*")) {
+            Log.e("PLAYPOD", "transcripturl: $transcripturl")
+            URL(transcripturl).readText()
+        }
+        else {
+            transcripturl
+        }
     }
     else {
         ""
@@ -126,7 +143,7 @@ fun PlayPod(
             if (controller?.isPlaying != true) {
             // If no audio URL was provided, load and play the top item from the queue
 //            if (audioUrl.isNullOrBlank() || audioUrl == " ") {
-                val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
+                val queueManager = PlayQueueManager(context)
                 val queueItems = queueManager.getQueue()
                 if (queueItems.isNotEmpty()) {
                     val topItem = queueItems[0]
@@ -136,16 +153,18 @@ fun PlayPod(
                     finalTitle = topItem.title
                     finalPhotoUrl = topItem.photoUrl
                     finalCreator = topItem.creator
+                    finalDesc = topItem.description
+
 
                     // Create and set media item
-                    val mediaItem = androidx.media3.common.MediaItem.Builder()
+                    val mediaItem = MediaItem.Builder()
                         .setMediaId(topItem.audioUrl)
-                        .setUri(android.net.Uri.parse(topItem.audioUrl))
+                        .setUri(topItem.audioUrl.toUri())
                         .setMediaMetadata(
-                            androidx.media3.common.MediaMetadata.Builder()
+                            MediaMetadata.Builder()
                                 .setTitle(topItem.title)
                                 .setArtist(topItem.creator)
-                                .setArtworkUri(android.net.Uri.parse(topItem.photoUrl))
+                                .setArtworkUri(topItem.photoUrl.toUri())
                                 .build()
                         )
                         .build()
@@ -154,9 +173,9 @@ fun PlayPod(
                     pc.prepare()
                     pc.play()
 
-                    android.util.Log.d("PLAYPLAY", "Playing top queue item: ${topItem.title}")
+                    Log.d("PLAYPLAY", "Playing top queue item: ${topItem.title}")
                 } else {
-                    android.util.Log.d("PLAYPLAY", "Queue is empty, no item to play")
+                    Log.d("PLAYPLAY", "Queue is empty, no item to play")
                 }
             } else {
                 // Pull the metadata that was set in EpisodeRow
@@ -185,11 +204,13 @@ fun PlayPod(
             creator = finalCreator,
             navController = navController,
             desc = finalDesc,
-            transcript = transcript
+            transcript = transcript,
+            pubdate = pubdate
         )
         // MiniPlayerControls()
     }
 }
+
 
 @Composable
 fun MiniPlayerControls() {
@@ -241,12 +262,12 @@ fun MiniPlayerControls() {
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 IconButton(onClick = { mediaController?.seekBack() }) {
-                Icon(
-                    painter = painterResource(R.drawable.replay_10_24px),
-                    contentDescription = "Rewind 10 seconds",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
+                    Icon(
+                        painter = painterResource(R.drawable.replay_10_24px),
+                        contentDescription = "Rewind 10 seconds",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
                 Text(
                     formatDuration(currentPosition),
                     color = Color.Gray,
@@ -279,29 +300,30 @@ fun MiniPlayerControls() {
                     style = MaterialTheme.typography.labelSmall
                 )
                 IconButton(
-                        onClick = {
-                            mediaController?.let { if (it.isPlaying) it.pause() else it.play() }
-                        }
-                        ) {
+                    onClick = {
+                        mediaController?.let { if (it.isPlaying) it.pause() else it.play() }
+                    }
+                ) {
                     Icon(
                         painter = painterResource(if (isPlaying) R.drawable.outline_pause_24 else R.drawable.play_arrow_24px),
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                        IconButton(onClick = { mediaController?.seekForward() }) {
-                            Icon(
-                                painter = painterResource(R.drawable.outline_forward_30_24),
-                                contentDescription = "Forward 30 seconds",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-
+                IconButton(onClick = { mediaController?.seekForward() }) {
+                    Icon(
+                        painter = painterResource(R.drawable.outline_forward_30_24),
+                        contentDescription = "Forward 30 seconds",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
                 }
+            }
+
+
+        }
     }
 }
+
 
 @OptIn(UnstableApi::class)
 @ExperimentalGlideComposeApi
@@ -313,8 +335,11 @@ fun AudioPlayer(
     photoUrl: String,
     navController: NavController,
     desc: String? = null,
-    transcript: String? = null
+    transcript: String? = null,
+    pubdate: String? = null
 ) {
+    Log.e("DATE" , pubdate.toString())
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var mediaController by remember { mutableStateOf<MediaController?>(null) }
@@ -334,10 +359,10 @@ fun AudioPlayer(
         onDispose {
             // Save current playback state when navigating away
             mediaController?.let { controller ->
-                val playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(context)
+                val playbackStateManager = PlaybackStateManager(context)
                 val currentMediaItem = controller.currentMediaItem
                 currentMediaItem?.let { mediaItem ->
-                    val state = com.pod_chive.android.playback.PlaybackState(
+                    val state = PlaybackState(
                         audioUrl = mediaItem.mediaId,
                         title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
                         creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
@@ -347,7 +372,7 @@ fun AudioPlayer(
                         playbackSpeed = playbackSpeed
                     )
                     playbackStateManager.savePlaybackState(state)
-                    android.util.Log.d("PLAYBACK", "PlayPod dispose: Saved state on navigate away with speed: ${playbackSpeed}x")
+                    Log.d("PLAYBACK", "PlayPod dispose: Saved state on navigate away with speed: ${playbackSpeed}x")
                 }
             }
         }
@@ -368,50 +393,51 @@ fun AudioPlayer(
             playbackSpeed = controller.playbackParameters.speed
 
             // Try to restore playback position from saved state
-            val playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(context)
-            android.util.Log.d("PLAYBACK", "AudioPlayer: Looking for saved state for URL: $audioUrl")
+            val playbackStateManager = PlaybackStateManager(context)
+            Log.d("PLAYBACK", "AudioPlayer: Looking for saved state for URL: $audioUrl")
 
             var savedState = playbackStateManager.getPlaybackState(audioUrl)
 
             // If not found and URL contains encoded characters, try to find a match
             if (savedState == null && audioUrl.contains("%")) {
-                android.util.Log.d("PLAYBACK", "URL is encoded, searching for decoded match...")
+                Log.d("PLAYBACK", "URL is encoded, searching for decoded match...")
                 val decodedUrl = try {
-                    android.net.Uri.decode(audioUrl)
+                    Uri.decode(audioUrl)
                 } catch (e: Exception) {
+                    Log.d("PLAYBACK", "Error decoding URL: ${e.message}")
                     audioUrl
                 }
                 savedState = playbackStateManager.getPlaybackState(decodedUrl)
                 if (savedState != null) {
-                    android.util.Log.d("PLAYBACK", "Found state using decoded URL")
+                    Log.d("PLAYBACK", "Found state using decoded URL")
                 }
             }
 
             // If still not found, search all states for matching audio URL
             if (savedState == null) {
-                android.util.Log.d("PLAYBACK", "Searching all saved states for any match...")
+                Log.d("PLAYBACK", "Searching all saved states for any match...")
                 val allStates = playbackStateManager.getAllPlaybackStates()
                 savedState = allStates.values.firstOrNull {
                     it.audioUrl == audioUrl ||
-                    android.net.Uri.decode(it.audioUrl) == audioUrl ||
-                    android.net.Uri.decode(it.audioUrl) == android.net.Uri.decode(audioUrl)
+                    Uri.decode(it.audioUrl) == audioUrl ||
+                    Uri.decode(it.audioUrl) == Uri.decode(audioUrl)
                 }
                 if (savedState != null) {
-                    android.util.Log.d("PLAYBACK", "Found matching state in all states")
+                    Log.d("PLAYBACK", "Found matching state in all states")
                 }
             }
 
             if (savedState != null) {
-                android.util.Log.d("PLAYBACK", "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms")
+                Log.d("PLAYBACK", "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms")
                 // Only restore if the saved position is reasonable (not at the very end)
                 if (savedState.currentPosition > 0 && savedState.currentPosition < savedState.duration * 0.95) {
                     controller.seekTo(savedState.currentPosition)
-                    android.util.Log.d("PLAYBACK", "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms")
+                    Log.d("PLAYBACK", "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms")
                 } else {
-                    android.util.Log.d("PLAYBACK", "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms")
+                    Log.d("PLAYBACK", "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms")
                 }
             } else {
-                android.util.Log.d("PLAYBACK", "✗ No saved state found for: $audioUrl")
+                Log.d("PLAYBACK", "✗ No saved state found for: $audioUrl")
             }
 
             // Setup a listener to update the UI in real-time
@@ -440,11 +466,11 @@ fun AudioPlayer(
     // Save speed change when user adjusts playback speed
     LaunchedEffect(playbackSpeed) {
         mediaController?.let { controller ->
-            val playbackStateManager = com.pod_chive.android.playback.PlaybackStateManager(context)
+            val playbackStateManager = PlaybackStateManager(context)
             val currentMediaItem = controller.currentMediaItem
             currentMediaItem?.let { mediaItem ->
                 try {
-                    val state = com.pod_chive.android.playback.PlaybackState(
+                    val state = PlaybackState(
                         audioUrl = mediaItem.mediaId,
                         title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
                         creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
@@ -454,9 +480,9 @@ fun AudioPlayer(
                         playbackSpeed = playbackSpeed
                     )
                     playbackStateManager.savePlaybackState(state)
-                    android.util.Log.d("PLAYBACK", "Saved speed change: ${playbackSpeed}x")
+                    Log.d("PLAYBACK", "Saved speed change: ${playbackSpeed}x")
                 } catch (e: Exception) {
-                    android.util.Log.e("PLAYBACK", "Error saving speed: ${e.message}")
+                    Log.e("PLAYBACK", "Error saving speed: ${e.message}")
                 }
             }
         }
@@ -469,8 +495,8 @@ fun AudioPlayer(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        val configuration = LocalConfiguration.current
-        val screenHeight = configuration.screenHeightDp
+//        val configuration = LocalConfiguration.current
+        val screenHeight = LocalWindowInfo.current.containerSize.height
 
         // Calculate dynamic artwork size based on screen height
         // Leave room for controls (~320dp) and padding
@@ -495,6 +521,15 @@ fun AudioPlayer(
                     modifier = Modifier.size(32.dp)
                 )
             }
+            IconButton(
+                onClick =  {
+                    val temp =  Information( desc, transcript, pubdate, creator, title)
+                    navController.navigate(temp)
+
+                }
+            ) { Icon(
+                imageVector = Icons.AutoMirrored.Sharp.Help,
+                contentDescription = "View Details")}
         }
         // --- Artwork ---
         Box(
@@ -758,111 +793,111 @@ fun AudioPlayer(
         }
 
         // --- Description & Transcript Section ---
-        var episodeDescription by remember { mutableStateOf<String?>(null) }
-        var episodeTranscript by remember { mutableStateOf<String?>(null) }
-        var isLoadingDetails by remember { mutableStateOf(false) }
+//        var episodeDescription by remember { mutableStateOf<String?>(null) }
+//        var episodeTranscript by remember { mutableStateOf<String?>(null) }
+//        var isLoadingDetails by remember { mutableStateOf(false) }
 
-        // Try to fetch episode details from the currently playing media item
-        LaunchedEffect(mediaController?.currentMediaItem?.mediaId) {
-            val currentMediaItem = mediaController?.currentMediaItem
-            if (currentMediaItem != null) {
-                // Check if we can extract directory from audioUrl to fetch episode data
-                val mediaId = currentMediaItem.mediaId
+//        // Try to fetch episode details from the currently playing media item
+//        LaunchedEffect(mediaController?.currentMediaItem?.mediaId) {
+//            val currentMediaItem = mediaController?.currentMediaItem
+//            if (currentMediaItem != null) {
+//                // Check if we can extract directory from audioUrl to fetch episode data
+//                val mediaId = currentMediaItem.mediaId
+//
+//                // If it's from our server (contains pod-chive.com), try to fetch details
+//                if (mediaId.contains("pod-chive.com")) {
+//                    isLoadingDetails = true
+//                    try {
+//                        // Extract directory from URL like https://pod-chive.com/PodcastName/episode.mp3
+//                        val urlParts = mediaId.split("/")
+//                        if (urlParts.size >= 4) {
+//                            val directory = urlParts[3]
+//
+//                            // Fetch podcast details
+//                            val podcastData = com.pod_chive.android.api.RetrofitClientFront.getInstance(context)
+//                                .getPodDetails(directory)
+//
+//                            // Find matching episode by audio file path
+//                            val matchingEpisode = podcastData.episodes?.find { episode ->
+//                                mediaId.endsWith(episode.audioFilePath)
+//                            }
+//
+//                            episodeDescription = matchingEpisode?.description
+//                            // Note: transcript would need to be added to Episode data class
+//                            // For now, we'll show a placeholder
+//                        }
+//                    } catch (e: Exception) {
+//                        android.util.Log.e("PLAYPOD", "Error fetching episode details: ${e.message}")
+//                    } finally {
+//                        isLoadingDetails = false
+//                    }
+//                }
+//            }
+//        }
 
-                // If it's from our server (contains pod-chive.com), try to fetch details
-                if (mediaId.contains("pod-chive.com")) {
-                    isLoadingDetails = true
-                    try {
-                        // Extract directory from URL like https://pod-chive.com/PodcastName/episode.mp3
-                        val urlParts = mediaId.split("/")
-                        if (urlParts.size >= 4) {
-                            val directory = urlParts[3]
-
-                            // Fetch podcast details
-                            val podcastData = com.pod_chive.android.api.RetrofitClientFront.getInstance(context)
-                                .getPodDetails(directory)
-
-                            // Find matching episode by audio file path
-                            val matchingEpisode = podcastData.episodes?.find { episode ->
-                                mediaId.endsWith(episode.audioFilePath)
-                            }
-
-                            episodeDescription = matchingEpisode?.description
-                            // Note: transcript would need to be added to Episode data class
-                            // For now, we'll show a placeholder
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.e("PLAYPOD", "Error fetching episode details: ${e.message}")
-                    } finally {
-                        isLoadingDetails = false
-                    }
-                }
-            }
-        }
-
-        // Show description if available
-        if (!episodeDescription.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Surface(
-                color = Color(0xFF1E1E1E),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Description",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Use HtmlText composable from home.kt
-                    HtmlText(
-                        html = episodeDescription ?: "",
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
-
-        // Transcript section (placeholder for future implementation)
-        if (!episodeTranscript.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Surface(
-                color = Color(0xFF1E1E1E),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Transcript",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = episodeTranscript ?: "",
-                        color = Color.LightGray,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
-
-        // Bottom padding
-        Spacer(modifier = Modifier.height(32.dp))
+//        // Show description if available
+//        if (!desc.isNullOrBlank()) {
+//            Spacer(modifier = Modifier.height(24.dp))
+//
+//            Surface(
+//                color = Color(0xFF1E1E1E),
+//                shape = RoundedCornerShape(12.dp),
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(horizontal = 24.dp)
+//            ) {
+//                Column(
+//                    modifier = Modifier.padding(16.dp)
+//                ) {
+//                    Text(
+//                        text = "Description",
+//                        color = MaterialTheme.colorScheme.primary,
+//                        style = MaterialTheme.typography.titleMedium,
+//                        fontWeight = FontWeight.Bold
+//                    )
+//                    Spacer(modifier = Modifier.height(8.dp))
+//
+//                    // Use HtmlText composable from home.kt
+//                    HtmlText(
+//                        html = desc,
+//                        modifier = Modifier.fillMaxWidth()
+//                    )
+//                }
+//            }
+//        }
+//
+//        // Transcript section (placeholder for future implementation)
+//        if (!transcript.isNullOrBlank()) {
+//            Spacer(modifier = Modifier.height(16.dp))
+//
+//            Surface(
+//                color = Color(0xFF1E1E1E),
+//                shape = RoundedCornerShape(12.dp),
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(horizontal = 24.dp)
+//            ) {
+//                Column(
+//                    modifier = Modifier.padding(16.dp)
+//                ) {
+//                    Text(
+//                        text = "Transcript",
+//                        color = MaterialTheme.colorScheme.primary,
+//                        style = MaterialTheme.typography.titleMedium,
+//                        fontWeight = FontWeight.Bold
+//                    )
+//                    Spacer(modifier = Modifier.height(8.dp))
+//                    Text(
+//                        text = transcript,
+//                        color = MaterialTheme.colorScheme.onSurface,
+//                        style = MaterialTheme.typography.bodyMedium
+//                    )
+//                }
+//            }
+//        }
+//
+//        // Bottom padding
+//        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

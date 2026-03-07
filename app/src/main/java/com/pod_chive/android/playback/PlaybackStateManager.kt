@@ -2,10 +2,10 @@ package com.pod_chive.android.playback
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
+import androidx.core.content.edit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
 
 @Serializable
 data class PlaybackState(
@@ -16,7 +16,8 @@ data class PlaybackState(
     val currentPosition: Long,
     val duration: Long,
     val playbackSpeed: Float = 1.0f,
-    val lastPlayedAt: Long = System.currentTimeMillis()
+    val lastPlayedAt: Long = System.currentTimeMillis(),
+    val publishDate: String? = null
 )
 
 class PlaybackStateManager(context: Context) {
@@ -29,7 +30,7 @@ class PlaybackStateManager(context: Context) {
             val states = getAllPlaybackStates().toMutableMap()
             states[state.audioUrl] = state
             val jsonString = json.encodeToString(states)
-            prefs.edit().putString(PLAYBACK_STATES_KEY, jsonString).apply()
+            prefs.edit { putString(PLAYBACK_STATES_KEY, jsonString) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -41,6 +42,7 @@ class PlaybackStateManager(context: Context) {
             val states = json.decodeFromString<Map<String, PlaybackState>>(jsonStr)
             states[audioUrl]
         } catch (e: Exception) {
+            Log.d("PlaybackStateManager", "Error getting playback state: ${e.message}")
             null
         }
     }
@@ -50,6 +52,7 @@ class PlaybackStateManager(context: Context) {
             val jsonStr = prefs.getString(PLAYBACK_STATES_KEY, "{}") ?: "{}"
             json.decodeFromString<Map<String, PlaybackState>>(jsonStr)
         } catch (e: Exception) {
+            Log.d("PlaybackStateManager", "Error getting all playback states: ${e.message}")
             emptyMap()
         }
     }
@@ -59,14 +62,14 @@ class PlaybackStateManager(context: Context) {
             val states = getAllPlaybackStates().toMutableMap()
             states.remove(audioUrl)
             val jsonString = json.encodeToString(states)
-            prefs.edit().putString(PLAYBACK_STATES_KEY, jsonString).apply()
+            prefs.edit { putString(PLAYBACK_STATES_KEY, jsonString) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     fun clearAllPlaybackStates() {
-        prefs.edit().remove(PLAYBACK_STATES_KEY).apply()
+        prefs.edit{remove(PLAYBACK_STATES_KEY).apply()}
     }
 
     fun getRecentlyPlayed(limit: Int = 10): List<PlaybackState> {

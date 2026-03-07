@@ -13,7 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,16 +36,16 @@ import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.RssDataSource
 import com.pod_chive.android.api.RssFeedResult
 import com.pod_chive.android.database.FavoritePodcastRepository
+import com.pod_chive.android.ui.components.LoadingIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.core.content.edit
 
 data class EpisodeWithPodcast(
     val episode: Episode,
@@ -99,7 +99,7 @@ private class FavoriteEpisodesPageCache(context: Context) {
             cachedAtMs = System.currentTimeMillis(),
             episodes = episodes.map { it.toCachedEpisode() }
         )
-        prefs.edit().putString("payload", json.encodeToString(payload)).apply()
+        prefs.edit { putString("payload", json.encodeToString(payload)) }
     }
 
     private fun CachedEpisodeWithPodcast.toEpisodeWithPodcast(): EpisodeWithPodcast {
@@ -193,6 +193,7 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                 isLoading = true
             }
 
+
             // Fetch episodes from all favorite podcasts concurrently
             val allEpisodes = withContext(Dispatchers.IO) {
                 favorites.map { favorite ->
@@ -207,7 +208,7 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                                                 episode = episode,
                                                 podcastTitle = favorite.title,
                                                 podcastDirectory = null,
-                                                audioUrl = episode.audioFilePath ?: "",
+                                                audioUrl = episode.audioFilePath,
                                                 photoUrl = favorite.imageLocation,
                                                 isRss = true
                                             )
@@ -222,7 +223,7 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                                 // Local podcast
                                 val podcastData = RetrofitClientFront.getInstance(context)
                                     .getPodDetails(favorite.feedLink)
-                                podcastData.episodes?.map { episode ->
+                                podcastData.episodes.map { episode ->
                                     EpisodeWithPodcast(
                                         episode = episode,
                                         podcastTitle = favorite.title,
@@ -257,6 +258,7 @@ fun FavoriteEpisodesScreen(navController: NavController) {
         }
     }
 
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -269,12 +271,14 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { navController.popBackStack() }) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+            if (navController.previousBackStackEntry != null) {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
             Text(
                 text = "New Episodes",
@@ -294,12 +298,7 @@ fun FavoriteEpisodesScreen(navController: NavController) {
 
         when {
             isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                LoadingIndicator()
             }
             errorMessage != null -> {
                 Box(
@@ -318,11 +317,26 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "No episodes found in favorite podcasts",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column (modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "No episodes found in favorite podcasts",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box (
+                            contentAlignment = Alignment.Center
+                        ){
+
+                            Button(
+                                onClick = { navController.navigate("search") },
+                                modifier = Modifier.align(Alignment.Center)
+                            ) {
+                                Text(text = "Explore Some Podcasts")
+
+                            }
+                        }
+                    }
                 }
             }
             else -> {

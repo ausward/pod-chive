@@ -86,6 +86,8 @@ fun PodchiveTheme(
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    // Apply this theme at the app/root level (for example in MainActivity setContent).
+    // Avoid nesting PodchiveTheme in regular screen composables.
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

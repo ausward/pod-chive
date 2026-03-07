@@ -42,11 +42,11 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import com.pod_chive.android.PlaybackService
-import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalGlideComposeApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -211,12 +211,12 @@ fun PlayQueueScreen(navController: NavController) {
 
                             val mediaItem = MediaItem.Builder()
                                 .setMediaId(item.audioUrl)
-                                .setUri(Uri.parse(item.audioUrl))
+                                .setUri(item.audioUrl.toUri())
                                 .setMediaMetadata(
                                     MediaMetadata.Builder()
                                         .setTitle(item.title)
                                         .setArtist(item.creator)
-                                        .setArtworkUri(Uri.parse(item.photoUrl))
+                                        .setArtworkUri(item.photoUrl.toUri())
                                         .build()
                                 )
                                 .build()
@@ -241,8 +241,9 @@ fun PlayQueueScreen(navController: NavController) {
                             val encodedCreator = Uri.encode(item.creator)
                             val encodedDescription = Uri.encode(item.description)
                             val encodededtrans = Uri.encode(item.transcript)
+                            val encodedDate = Uri.encode(item.publishDate)
                             navController.navigate(
-                                "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcripturl=$encodededtrans"
+                                "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcripturl=$encodededtrans&publishDate=$encodedDate"
                             )
 
                         },
@@ -441,7 +442,7 @@ fun formatTime(milliseconds: Long): String {
 
 @Composable
 fun PlayBackProgressVis(playbackState: PlaybackState?) {
-// Display playback progress if available
+    // Display playback progress if available
     if (playbackState?.currentPosition != playbackState?.duration) {
         if (playbackState != null) {
             Spacer(modifier = Modifier.height(6.dp))
@@ -466,15 +467,12 @@ fun PlayBackProgressVis(playbackState: PlaybackState?) {
             )
         }
     } else if (playbackState?.duration == playbackState?.currentPosition) {
-        PodchiveTheme() {
         Text(
             text = "completed",
             fontStyle = MaterialTheme.typography.bodySmall.fontStyle,
             color = MaterialTheme.colorScheme.tertiary,
             fontSize = 11.sp
-
-
-        )}
+        )
     }
 
 

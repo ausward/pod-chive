@@ -1,20 +1,12 @@
 package com.pod_chive.android
 
 
-import androidx.media3.session.MediaController
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.material.icons.filled.PlayArrow
 import android.content.ComponentName
 import android.net.Uri
 import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.widget.TextView
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.text.HtmlCompat
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.content.MediaType.Companion.HtmlText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,13 +30,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.ViewComfyAlt
-import androidx.compose.material.icons.filled.ViewDay
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ViewComfyAlt
+import androidx.compose.material.icons.filled.ViewDay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,8 +60,14 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.text.HtmlCompat
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
@@ -81,9 +79,10 @@ import com.pod_chive.android.api.PodcastDetailResponse
 import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.homeItem
-import com.pod_chive.android.ui.theme.PodchiveTheme
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayBackProgressVis
+import com.pod_chive.android.ui.components.LoadingIndicator
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -96,7 +95,7 @@ fun HomePage(navController: NavController ) {
     var isloading by rememberSaveable { mutableStateOf(false) }
     var podcasts by rememberSaveable() { mutableStateOf<ArrayList<homeItem>>(arrayListOf()) }
     var error = ""
-    var grid by rememberSaveable(){ mutableStateOf(false) }
+    var grid by rememberSaveable(){ mutableStateOf(true) }
 
 
 
@@ -188,8 +187,11 @@ fun MainPodListExpanderHor(podcast: homeItem, onItemClick: () -> Unit ){
                 fontSize = 16.sp,
                 maxLines = 1,
             )
-            HorizontalDivider(color = Color.LightGray, thickness = 3.dp)
-            HtmlText(html = podcast.description, maxLines = 4)
+            if (podcast.description != null) {
+
+                HorizontalDivider(color = Color.LightGray, thickness = 3.dp)
+                HtmlText(html = podcast.description.slice(0..60) + "...", maxLines = 4)
+            }
             
         }
     }
@@ -220,9 +222,9 @@ fun MainPodGridItem(podcast: homeItem, onItemClick: () -> Unit) {
 }
 
 
-@OptIn(ExperimentalGlideComposeApi::class)
+@OptIn(ExperimentalGlideComposeApi::class, DelicateCoroutinesApi::class)
 @Composable
-fun showPodDetsFromMainServer(directory: String, navController: NavController) {
+fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
     val context = LocalContext.current
     var podcastData by remember { mutableStateOf<PodcastDetailResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -248,6 +250,7 @@ fun showPodDetsFromMainServer(directory: String, navController: NavController) {
             val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
             isFavorite = repository.isFavorite(directory)
         } catch (e: Exception) {
+            Log.e("ShowPodDetsFromMainServer", "Error fetching podcast details", e)
             // Handle error
         } finally {
             isLoading = false
@@ -255,15 +258,12 @@ fun showPodDetsFromMainServer(directory: String, navController: NavController) {
     }
 
     if (isLoading) {
-        Box(contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(Modifier.size(600.dp))
-        }
+        LoadingIndicator()
     } else {
-        PodchiveTheme(dynamicColor = false) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState) // Standard Column scrolling
+                .verticalScroll(scrollState)
         ) {
             // --- Shinking Header ---
             Column(
@@ -310,67 +310,66 @@ fun showPodDetsFromMainServer(directory: String, navController: NavController) {
                 )
             }
         }
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = if (showStickyTitle) MaterialTheme.colorScheme.surface else Color.Transparent,
-                tonalElevation = if (showStickyTitle) 4.dp else 0.dp
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = if (showStickyTitle) MaterialTheme.colorScheme.surface else Color.Transparent,
+            tonalElevation = if (showStickyTitle) 4.dp else 0.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .statusBarsPadding() // Handles the notch/status bar area
+                    .height(64.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .statusBarsPadding() // Handles the notch/status bar area
-                        .height(64.dp)
-                        .padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
-                    if (showStickyTitle) {
-                        Text(
-                            text = podcastData?.podcastTitle ?: "",
-                            style = MaterialTheme.typography.titleLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .weight(1f)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+                if (showStickyTitle) {
+                    Text(
+                        text = podcastData?.podcastTitle ?: "",
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .weight(1f)
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
 
-                    IconButton(onClick = {
-                        val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
-                        GlobalScope.launch(Dispatchers.IO) {
-                            if (isFavorite) {
-                                val favorite = repository.getFavoriteByFeedLink(directory)
-                                if (favorite != null) {
-                                    repository.deleteFavorite(favorite)
-                                }
-                            } else {
-                                repository.insertFavorite(
-                                    com.pod_chive.android.database.FavoritePodcast(
-                                        feedLink = directory,
-                                        imageLocation = "https://pod-chive.com/$directory/cover.webp",
-                                        description = "",
-                                        title = podcastData?.podcastTitle ?: ""
-                                    )
-                                )
+                IconButton(onClick = {
+                    val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
+                    GlobalScope.launch(Dispatchers.IO) {
+                        if (isFavorite) {
+                            val favorite = repository.getFavoriteByFeedLink(directory)
+                            if (favorite != null) {
+                                repository.deleteFavorite(favorite)
                             }
-                            isFavorite = !isFavorite
+                        } else {
+                            repository.insertFavorite(
+                                com.pod_chive.android.database.FavoritePodcast(
+                                    feedLink = directory,
+                                    imageLocation = "https://pod-chive.com/$directory/cover.webp",
+                                    description = "",
+                                    title = podcastData?.podcastTitle ?: ""
+                                )
+                            )
                         }
-                    }) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                        )
+                        isFavorite = !isFavorite
                     }
+                }) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
         }
@@ -516,6 +515,7 @@ fun EpisodeRow(
                     creator = podcastTitle ?: "Unknown",
                     description = episode.description,
                     transcript = episode.transcript,
+                    publishDate = episode.pubDate
                 )
                 queueManager.addToQueue(queueItem)
                 queueManager.moveToTop(queueItem.id)
@@ -527,9 +527,9 @@ fun EpisodeRow(
                 val encodedCreator = Uri.encode(podcastTitle ?: "")
                 val encodedDescription = Uri.encode(episode.description ?: "")
                 val encodedTranscript = Uri.encode(episode.transcript ?: "")
-
+                val encodedDate = Uri.encode(episode.pubDate ?: "")
                 navController.navigate(
-                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcript=$encodedTranscript"
+                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcript=$encodedTranscript&publishDate=$encodedDate"
                 )
             }
         }
@@ -579,10 +579,19 @@ fun EpisodeRow(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
-                HtmlText(
-                    html = episode.description ?: "No description available.",
-                    maxLines = 2,
-                )
+                if (episode.description != null) {
+                    if (episode.description.length > 60) {
+                        HtmlText(
+                            html = episode.description.slice(0..60) + "...",
+                            maxLines = 2,
+                        )
+                    } else {
+                        HtmlText(
+                            html = episode.description,
+                            maxLines = 2,
+                        )
+                    }
+                }
                 if (state.duration > 0) {
 //                     var progressPercent = 100f * state.currentPosition.toFloat() / state.duration.toFloat()
 //                    (state.currentPosition.toFloat() / state.duration.toFloat() * 100f)
@@ -656,10 +665,10 @@ fun HtmlText(html: String, modifier: Modifier = Modifier, maxLines: Int = Int.MA
                 this.maxLines = maxLines
                 // Optional: Adjust text size or color to match your theme
                 textSize = 16f
+
                 setTextColor(textColor)
             }
         },
         update = { it.text = HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_COMPACT) }
     )
 }
-

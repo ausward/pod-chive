@@ -1,6 +1,7 @@
 package com.pod_chive.android
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -8,19 +9,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -29,15 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
-import com.pod_chive.android.api.PodcastDetailResponse
-import com.pod_chive.android.api.RssFeedResult
 import com.pod_chive.android.api.homeItem
+import com.pod_chive.android.ui.components.Details
+import com.pod_chive.android.ui.components.Information
 import com.pod_chive.android.ui.theme.PodchiveTheme
 
 
@@ -67,12 +67,31 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            NavigationBar {
+                            NavigationBar (
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                tonalElevation = 0.dp
+                            ){
                                 items.forEachIndexed { index, item ->
                                     NavigationBarItem(
                                         icon = { Icon(icons[index], contentDescription = item) },
                                         label = { Text(item) },
+                                        alwaysShowLabel = false,
                                         selected = selectedItem == index,
+                                        colors = NavigationBarItemDefaults.colors(
+                                            // The pill/indicator color when an item is selected
+                                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+
+                                            // The appearance of items when they are NOT selected
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+
+                                            // Optional: The ripple effect color
+                                            disabledIconColor = MaterialTheme.colorScheme.outline,
+                                            disabledTextColor = MaterialTheme.colorScheme.outline
+                                        ),
+
                                         onClick = {
                                             selectedItem = index
                                             // 2. Navigate to the route when clicked
@@ -101,18 +120,22 @@ class MainActivity : ComponentActivity() {
                                     if (searchQuery == "") {
                                         HomePage(navController)
                                     } else {
-                                        findPod(searchQuery, navController)
+                                        FindPod(searchQuery, navController)
 
                                     }
                                 }
                             }
                             composable(
-                                route = "playpod?audioUrl={audioUrl}&title={title}&photoUrl={photoUrl}&creator={creator}&desc={desc}&transcripturl={transcripturl}",
+                                route = "playpod?audioUrl={audioUrl}&title={title}&photoUrl={photoUrl}&creator={creator}&desc={desc}&transcripturl={transcripturl}&publishDate={publishDate}",
                                 arguments = listOf(
                                     navArgument("audioUrl") { type = NavType.StringType; nullable = true; defaultValue = null },
                                     navArgument("title") { type = NavType.StringType; nullable = true; defaultValue = null },
                                     navArgument("photoUrl") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("creator") { type = NavType.StringType; nullable = true; defaultValue = null }
+                                    navArgument("creator") { type = NavType.StringType; nullable = true; defaultValue = null },
+                                    navArgument("desc") { type = NavType.StringType; nullable = true; defaultValue = null },
+                                    navArgument("transcripturl") { type = NavType.StringType; nullable = true; defaultValue = null },
+                                    navArgument("publishDate") { type = NavType.StringType; nullable = true; defaultValue = null },
+
                                 )
                             ) { backStackEntry ->
                                 val audioUrl = backStackEntry.arguments?.getString("audioUrl")
@@ -121,6 +144,8 @@ class MainActivity : ComponentActivity() {
                                 val creator = backStackEntry.arguments?.getString("creator")
                                 val desc = backStackEntry.arguments?.getString("desc")
                                 val transcripturl = backStackEntry.arguments?.getString("transcripturl")
+                                val publishDate = backStackEntry.arguments?.getString("publishDate")
+                                Log.e("DATE!", backStackEntry.arguments?.getString("publishDate").toString())
                                 PlayPod(
                                     navController = navController,
                                     audioUrl = audioUrl,
@@ -128,21 +153,19 @@ class MainActivity : ComponentActivity() {
                                     photoUrl = photoUrl,
                                     creator = creator,
                                     desc = desc,
-                                    transcripturl = transcripturl
+                                    transcripturl = transcripturl,
+                                    pubdate = publishDate
                                 )
                             }
                             composable("details/{podcastTitle}") { backStackEntry ->
                                 val title = backStackEntry.arguments?.getString("podcastTitle") ?: ""
-                                showPodDetsFromMainServer(title, navController)
+                                ShowPodDetsFromMainServer(title, navController)
                             }
                             composable<homeItem>{ backStackEntry ->
 
                                 val Dets: homeItem = backStackEntry.toRoute()
 
-                                showPodDetsFromRSS(Dets, navController  )
-
-
-
+                                ShowPodDetsFromRSS(Dets, navController  )
                             }
                             composable("favorite_episodes"){
                                 FavoriteEpisodesScreen(navController)
@@ -152,6 +175,12 @@ class MainActivity : ComponentActivity() {
                             }
                             composable("queue") {
                                 com.pod_chive.android.queue.PlayQueueScreen(navController)
+                            }
+
+                            composable<Information> { backStackEntry ->
+                                val info: Information = backStackEntry.toRoute()
+
+                                Details(info, navController)
                             }
 //                            composable("debug_playback") {
 //                                PlaybackDebugScreen(navController)

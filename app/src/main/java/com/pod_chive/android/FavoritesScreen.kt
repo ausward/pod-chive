@@ -14,8 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +41,7 @@ import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
+import com.pod_chive.android.ui.components.LoadingIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -104,18 +103,7 @@ fun FavoritesScreen(navController: NavController) {
 
         when {
             isLoading -> {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
+                LoadingIndicator()
             }
             favorites.isEmpty() -> {
                 Surface(
@@ -165,8 +153,6 @@ fun FavoritePodcastItem(
     navController: NavController,
     onDelete: (FavoritePodcast) -> Unit
 ) {
-    val context = LocalContext.current
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
