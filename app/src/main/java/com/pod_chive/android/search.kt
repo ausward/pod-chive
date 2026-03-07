@@ -151,10 +151,9 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 Log.d("PodchiveAPI", "response: $response")
                 val homeItems = ArrayList(response.results.map { podcast ->
                     homeItem(
-                        podcast_title = podcast.title,
+                         podcast.title,
                         description = podcast.description ?: "",
                         rss_url = podcast.url,
-                        html_summary_location = "",
                         output_directory = podcast.url.substringAfterLast('/'),
                         cover_image_url = podcast.imageUrl
                     )
@@ -378,11 +377,11 @@ fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                 EpisodeRow(
                     episode,
                     null,
-                    podcastData?.podcast_title,
+
                     navController,
                     PlaybackState.STOPPED,
-                    episode.audioFilePath,
-                    podcastData?.cover_image_url
+//                    episode.audioFilePath,
+//                    podcastData?.cover_image_url
                 )
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.tertiary,

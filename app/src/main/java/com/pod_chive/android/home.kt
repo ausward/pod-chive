@@ -106,6 +106,8 @@ fun HomePage(navController: NavController ) {
             val res = RetrofitClient.getInstance(context = context ).listPodcasts()
 
             podcasts = ArrayList(res.podcasts)
+
+            Log.d("PODCASTS", podcasts.toString())
         } catch (e: Exception) {
             error = e.message.toString()
         } finally {
@@ -182,15 +184,15 @@ fun MainPodListExpanderHor(podcast: homeItem, onItemClick: () -> Unit ){
             )
         Column(modifier = Modifier.padding(horizontal = 8.dp)) {
             Text(
-                text = podcast.podcast_title,
+                text = podcast.podcast_title ?: "",
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 maxLines = 1,
             )
-            if (podcast.description != null) {
-
+            podcast.description?.let { desc ->
                 HorizontalDivider(color = Color.LightGray, thickness = 3.dp)
-                HtmlText(html = podcast.description.slice(0..60) + "...", maxLines = 4)
+                val displayDesc = if (desc.length > 60) desc.take(60) + "..." else desc
+                HtmlText(html = displayDesc, maxLines = 4)
             }
             
         }
@@ -211,7 +213,7 @@ fun MainPodGridItem(podcast: homeItem, onItemClick: () -> Unit) {
                 loading = placeholder(R.mipmap.shrug)
             )
             Text(
-                text = podcast.podcast_title,
+                text = podcast.podcast_title ?: "",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 maxLines = 1,
@@ -299,7 +301,7 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
                 EpisodeRow(
                     episode,
                     directory,
-                    podcastData?.podcastTitle,
+//                    podcastData?.podcastTitle,
                     navController,
                     PlaybackState.STOPPED
                 )
@@ -383,11 +385,11 @@ enum class PlaybackState { PLAYING, PAUSED, STOPPED }
 fun EpisodeRow(
     episodeDC: EpisodeDC,
     directory: String? = null,
-    podcastSHOWTitle: String?,
+//    podcastSHOWTitle: String?,
     navController: NavController,
     playbackState: PlaybackState,
-    AudioUrl: String? = null,
-    PhotoUrl: String? = null,
+//    AudioUrl: String? = null,
+//    PhotoUrl: String? = null,
     showPodcastImage: Boolean = false
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -402,8 +404,8 @@ fun EpisodeRow(
         audioUrl = "https://pod-chive.com/${episodeDC.audioFilePath}"
         photoUrl = "https://pod-chive.com/$directory/cover.webp"
     } else {
-        audioUrl = AudioUrl ?: ""
-        photoUrl = PhotoUrl ?: ""
+        audioUrl = episodeDC.audioFilePath ?: ""
+        photoUrl = episodeDC.photo ?: ""
     }
 
 //    val context = LocalContext.current
@@ -419,8 +421,8 @@ fun EpisodeRow(
     }
     state = stateManager.getPlaybackState(audioUrl) ?: com.pod_chive.android.playback.PlaybackState(
         audioUrl = audioUrl,
-        title = episodeDC.title,
-        creator = podcastSHOWTitle ?: "Unknown",
+        title = episodeDC.title ?: "",
+        creator = episodeDC.creator ?: "Unknown",
         photoUrl = photoUrl,
         currentPosition = 0,
         duration = 0
@@ -452,7 +454,7 @@ fun EpisodeRow(
                 }
             },
             title = {
-                Text(text = episodeDC.title, style = MaterialTheme.typography.titleLarge)
+                Text(text = episodeDC.title ?: "", style = MaterialTheme.typography.titleLarge)
             },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -467,10 +469,10 @@ fun EpisodeRow(
         val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
         val queueItem = com.pod_chive.android.queue.QueueItem(
             id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-            title = episodeDC.title,
+            title = episodeDC.title ?: "",
             audioUrl = audioUrl,
             photoUrl = photoUrl,
-            creator = podcastSHOWTitle ?: "Unknown",
+            creator = episodeDC.creator ?: "Unknown",
             description = episodeDC.description,
             transcript = episodeDC.transcript,
         )
@@ -488,14 +490,14 @@ fun EpisodeRow(
 
             val player = controller
             if (player != null) {
-                Log.e("LINK", AudioUrl ?: "Audio URL is null")
+                Log.e("LINK", audioUrl ?: "Audio URL is null")
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(audioUrl)
                     .setUri(Uri.parse(audioUrl))
                     .setMediaMetadata(
                         MediaMetadata.Builder()
-                            .setTitle(episodeDC.title)
-                            .setArtist(podcastSHOWTitle)
+                            .setTitle(episodeDC.title ?: "")
+                            .setArtist(episodeDC.creator ?: "Unknown")
                             .setArtworkUri(Uri.parse(photoUrl))
                             .build()
                     )
@@ -509,10 +511,10 @@ fun EpisodeRow(
                 val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
                 val queueItem = com.pod_chive.android.queue.QueueItem(
                     id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-                    title = episodeDC.title,
+                    title = episodeDC.title ?: "",
                     audioUrl = audioUrl,
                     photoUrl = photoUrl,
-                    creator = podcastSHOWTitle ?: "Unknown",
+                    creator = episodeDC.creator ?: "Unknown",
                     description = episodeDC.description,
                     transcript = episodeDC.transcript,
                     publishDate = episodeDC.pubDate
@@ -522,9 +524,9 @@ fun EpisodeRow(
                 Log.d("QUEUE", "Added and moved to top: ${episodeDC.title}")
 
                 val encodedAudioUrl = Uri.encode(audioUrl)
-                val encodedTitle = Uri.encode(episodeDC.title)
+                val encodedTitle = Uri.encode(episodeDC.title ?: "")
                 val encodedPhotoUrl = Uri.encode(photoUrl)
-                val encodedCreator = Uri.encode(podcastSHOWTitle ?: "")
+                val encodedCreator = Uri.encode(episodeDC.creator ?: "")
                 val encodedDescription = Uri.encode(episodeDC.description ?: "")
                 val encodedTranscript = Uri.encode(episodeDC.transcript ?: "")
                 val encodedDate = Uri.encode(episodeDC.pubDate ?: "")
@@ -565,13 +567,16 @@ fun EpisodeRow(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = episodeDC.title,
+                    text = episodeDC.title ?: "",
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+                val displayDate = episodeDC.pubDate?.let { 
+                    if (it.length >= 16) it.substring(0, 16) else it 
+                } ?: ""
                 Text(
-                    text = episodeDC.pubDate.substring(0, 16),
+                    text = displayDate,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
@@ -579,19 +584,14 @@ fun EpisodeRow(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
-                if (episodeDC.description != null) {
-                    if (episodeDC.description!!.length > 60) {
-                        HtmlText(
-                            html = episodeDC.description!!.slice(0..60) + "...",
-                            maxLines = 2,
-                        )
-                    } else {
-                        HtmlText(
-                            html = episodeDC.description!!,
-                            maxLines = 2,
-                        )
-                    }
+                episodeDC.description?.let { desc ->
+                    val displayDesc = if (desc.length > 60) desc.take(60) + "..." else desc
+                    HtmlText(
+                        html = displayDesc,
+                        maxLines = 2,
+                    )
                 }
+                
                 if (state.duration > 0) {
 //                     var progressPercent = 100f * state.currentPosition.toFloat() / state.duration.toFloat()
 //                    (state.currentPosition.toFloat() / state.duration.toFloat() * 100f)
@@ -634,8 +634,8 @@ fun EpisodeRow(
                         audioUrl = "https://pod-chive.com/${episodeDC.audioFilePath}"
                         photoUrl = "https://pod-chive.com/$directory/cover.webp"
                     } else {
-                        audioUrl = AudioUrl ?: return@IconButton
-                        photoUrl = PhotoUrl ?: return@IconButton
+                        audioUrl = episodeDC.audioFilePath ?: return@IconButton
+                        photoUrl = episodeDC.photo ?: return@IconButton
                     }
                     playEpisode(audioUrl, photoUrl)
                 },
@@ -669,6 +669,6 @@ fun HtmlText(html: String, modifier: Modifier = Modifier, maxLines: Int = Int.MA
                 setTextColor(textColor)
             }
         },
-        update = { it.text = HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_COMPACT) }
+        update = { it.text = HtmlCompat.fromHtml(html ?: "", HtmlCompat.FROM_HTML_MODE_COMPACT) }
     )
 }

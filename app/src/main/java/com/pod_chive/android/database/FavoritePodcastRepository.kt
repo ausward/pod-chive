@@ -2,10 +2,12 @@ package com.pod_chive.android.database
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.pod_chive.android.model.PodcastShow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.Serializable
+import androidx.core.content.edit
 
 @Serializable
 data class FavoritePodcast(
@@ -15,7 +17,7 @@ data class FavoritePodcast(
     val description: String,
     val title: String,
     val addedAt: Long = System.currentTimeMillis()
-)
+) : PodcastShow(title, description, imageLocation)
 
 class FavoritePodcastRepository(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("podchive_prefs", Context.MODE_PRIVATE)
@@ -54,7 +56,7 @@ class FavoritePodcastRepository(context: Context) {
     private fun saveFavorites(favorites: List<FavoritePodcast>) {
         try {
             val jsonString = json.encodeToString(favorites)
-            prefs.edit().putString(FAVORITES_KEY, jsonString).apply()
+            prefs.edit { putString(FAVORITES_KEY, jsonString) }
         } catch (e: Exception) {
             e.printStackTrace()
         }

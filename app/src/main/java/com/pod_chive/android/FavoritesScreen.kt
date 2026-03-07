@@ -167,7 +167,7 @@ fun FavoritePodcastItem(
                                 podcast_title = favorite.title,
                                 description = favorite.description,
                                 rss_url = favorite.feedLink,
-                                html_summary_location = "",
+//                                html_summary_location = "",
                                 output_directory = favorite.feedLink.substringAfterLast('/'),
                                 cover_image_url = favorite.imageLocation
                             )

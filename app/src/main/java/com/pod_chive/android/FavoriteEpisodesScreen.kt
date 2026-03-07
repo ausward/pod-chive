@@ -59,25 +59,16 @@ data class EpisodeWithShowData(
     @Contextual
     val episodeDC: EpisodeDC,
     val podcastDirectory: String?,
-//    val photoUrl: String,
     val isRss: Boolean
 )
 
-@Serializable
-private data class CachedEpisodeWithPodcast(
-    val title: String,
-    val description: String? = null,
-    val audioFilePath: String,
-    val pubDate: String,
-    val episodeData: EpisodeWithShowData,
-    val transcript: String? = null
-)
+
 
 @Serializable
 private data class FavoriteEpisodesCachePayload(
     val favoritesSignature: String,
     val cachedAtMs: Long,
-    val episodes: List<CachedEpisodeWithPodcast>
+    val episodes: List<EpisodeWithShowData>
 )
 
 private class FavoriteEpisodesPageCache(context: Context) {
@@ -90,7 +81,7 @@ private class FavoriteEpisodesPageCache(context: Context) {
             val payload = json.decodeFromString<FavoriteEpisodesCachePayload>(raw)
             val notExpired = System.currentTimeMillis() - payload.cachedAtMs <= ttlMs
             if (!notExpired || payload.favoritesSignature != favoritesSignature) return null
-            payload.episodes.map { it.toEpisodeWithPodcast() }
+            payload.episodes
         } catch (_: Exception) {
             null
         }
@@ -100,41 +91,9 @@ private class FavoriteEpisodesPageCache(context: Context) {
         val payload = FavoriteEpisodesCachePayload(
             favoritesSignature = favoritesSignature,
             cachedAtMs = System.currentTimeMillis(),
-            episodes = episodes.map { it.toCachedEpisode() }
+            episodes = episodes
         )
         prefs.edit { putString("payload", json.encodeToString(payload)) }
-    }
-
-    private fun CachedEpisodeWithPodcast.toEpisodeWithPodcast(): EpisodeWithShowData {
-
-
-        return EpisodeWithShowData(
-            episodeDC = EpisodeDC(
-                title = title,
-                description = description,
-                audioFilePath = audioFilePath,
-                pubDate = pubDate,
-                transcript = transcript,
-                creator = episodeData.episodeDC.creator,
-                photo = episodeData.episodeDC.photo
-            ),
-            podcastDirectory = episodeData.podcastDirectory,
-            isRss = episodeData.isRss,
-        )
-    }
-
-    private fun EpisodeWithShowData.toCachedEpisode(): CachedEpisodeWithPodcast {
-        return CachedEpisodeWithPodcast(
-            title = episodeDC.title,
-            description = episodeDC.description,
-            audioFilePath = episodeDC.audioFilePath,
-            pubDate = episodeDC.pubDate,
-            episodeData = EpisodeWithShowData(
-                podcastDirectory = podcastDirectory,
-                isRss = isRss,
-                episodeDC = episodeDC
-            )
-        )
     }
 }
 
@@ -351,11 +310,11 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                         EpisodeRow(
                             episodeDC = episodeWithPodcast.episodeDC,
                             directory = episodeWithPodcast.podcastDirectory,
-                            podcastSHOWTitle = episodeWithPodcast.episodeDC.creator,
+//                            podcastSHOWTitle = episodeWithPodcast.episodeDC.creator,
                             navController = navController,
                             playbackState = PlaybackState.STOPPED,
-                            AudioUrl = episodeWithPodcast.episodeDC.audioFilePath,
-                            PhotoUrl = episodeWithPodcast.episodeDC.photo,
+//                            AudioUrl = episodeWithPodcast.episodeDC.audioFilePath,
+//                            PhotoUrl = episodeWithPodcast.episodeDC.photo,
                             showPodcastImage = true
                         )
                         HorizontalDivider(

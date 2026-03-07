@@ -34,18 +34,27 @@ data class homeList(
 ) : Serializable
 
 @kotlinx.serialization.Serializable
+/**
+ * DO NOT CHANGE THE SIGNATURE. THE PARAMS MUST MACH TEH RESULTS FROM https://api.pod-chive.com/list_podcasts
+ * @param podcast_title podcast SHOW title
+ * @param description podcast show description
+ * @param rss_url podcast OG rss feed
+ * /@param html_summary_location  NOT USED, REMOVED
+ * @param output_directory  location of podcast data on server
+ * @param cover_image_url  location of podcast show cover image
+ */
 data class homeItem(
     val podcast_title: String,
     val description: String,
     val rss_url: String,
-    val html_summary_location: String,
+//    val html_summary_location: String,
     val output_directory: String,
     val cover_image_url: String? = null // New field for direct image URL
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readString() ?: "",
         parcel.readString() ?: "",
-        parcel.readString() ?: "",
+//        parcel.readString() ?: "",
         parcel.readString() ?: "",
         parcel.readString() ?: "",
         parcel.readString()
@@ -55,7 +64,7 @@ data class homeItem(
         parcel.writeString(podcast_title)
         parcel.writeString(description)
         parcel.writeString(rss_url)
-        parcel.writeString(html_summary_location)
+//        parcel.writeString(html_summary_location)
         parcel.writeString(output_directory)
         parcel.writeString(cover_image_url)
     }
@@ -73,6 +82,12 @@ data class homeItem(
             return arrayOfNulls(size)
         }
     }
+
+    override fun toString(): String {
+        return "homeItem(podcast_Episode_title='$podcast_title', description='${description.slice(0..2)}', rss_url='$rss_url', html_summary_location='NOT USED', output_directory='$output_directory', cover_image_url='$cover_image_url')"
+
+    }
+
 }
 
 
@@ -171,7 +186,7 @@ data class PodcastDetailResponse(
     val episodeDCS: List<EpisodeDC>
 ) : Serializable
 
-
+@kotlinx.serialization.Serializable
 data class EpisodeDC(
     @SerializedName("Title")
     val title: String,

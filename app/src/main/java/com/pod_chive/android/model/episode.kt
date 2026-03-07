@@ -59,6 +59,12 @@ open class PodcastShow{
 
     constructor()
 
+    constructor(PodcastName: String, PodcastUrl: String, image: String){
+        this.PodcastName = PodcastName
+        this.PodcastUrl = PodcastUrl
+        this.Cover_Image = image
+    }
+
     constructor(PodcastName: String){
         this.PodcastName = PodcastName
     }
@@ -71,5 +77,7 @@ open class PodcastShow{
         this.isRSS = isRSS
         this.audio_location = audio_location
     }
+
+
 
 }

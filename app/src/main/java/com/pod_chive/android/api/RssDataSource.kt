@@ -31,7 +31,6 @@ object RssDataSource {
             podcast_title = this.title ?: "Untitled Podcast",
             description = this.description ?: "No description available.",
             rss_url = originalRssFeedUrl,
-            html_summary_location = this.link ?: "",
             output_directory = "",
             cover_image_url = imageUrl
         )
