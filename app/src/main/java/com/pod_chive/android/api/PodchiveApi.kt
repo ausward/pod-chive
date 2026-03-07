@@ -177,14 +177,23 @@ data class EpisodeDC(
     val title: String,
 
     @SerializedName("description") // This one was lowercase in your sample
-    val description: String?,
+    var description: String?,
 
     @SerializedName("AudioFilePath")
-    val audioFilePath: String,
+    var audioFilePath: String,
 
     @SerializedName("pubDate")
     val pubDate: String,
 
     @SerializedName("transcript")
-    val transcript: String?
-) : com.pod_chive.android.model.Episode(title, description, audioFilePath, pubDate, transcript), Serializable
+    val transcript: String?,
+
+    @SerializedName("creator")
+    var creator: String?,
+
+    @SerializedName("photo")
+    var photo: String?
+
+) : com.pod_chive.android.model.Episode(title, description, audioFilePath, pubDate, transcript,
+    creator, photo),
+    Serializable

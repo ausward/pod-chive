@@ -58,9 +58,8 @@ import kotlinx.serialization.Contextual
 data class EpisodeWithShowData(
     @Contextual
     val episodeDC: EpisodeDC,
-    val podcastSHOWTitle: String,
     val podcastDirectory: String?,
-    val photoUrl: String,
+//    val photoUrl: String,
     val isRss: Boolean
 )
 
@@ -115,13 +114,12 @@ private class FavoriteEpisodesPageCache(context: Context) {
                 description = description,
                 audioFilePath = audioFilePath,
                 pubDate = pubDate,
-                transcript = transcript
+                transcript = transcript,
+                creator = episodeData.episodeDC.creator,
+                photo = episodeData.episodeDC.photo
             ),
             podcastDirectory = episodeData.podcastDirectory,
-//            audioUrl = episodeData.audioUrl,
-            photoUrl = episodeData.photoUrl,
             isRss = episodeData.isRss,
-            podcastSHOWTitle = episodeData.podcastSHOWTitle
         )
     }
 
@@ -132,10 +130,7 @@ private class FavoriteEpisodesPageCache(context: Context) {
             audioFilePath = episodeDC.audioFilePath,
             pubDate = episodeDC.pubDate,
             episodeData = EpisodeWithShowData(
-                podcastSHOWTitle =  podcastSHOWTitle,
                 podcastDirectory = podcastDirectory,
-//                audioUrl = audioUrl,
-                photoUrl = photoUrl,
                 isRss = isRss,
                 episodeDC = episodeDC
             )
@@ -215,10 +210,7 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                                         result.episodeDCS?.map { episode ->
                                             EpisodeWithShowData(
                                                 episodeDC = episode,
-                                                podcastSHOWTitle = favorite.title,
                                                 podcastDirectory = null,
-//                                                audioUrl = episode.audioFilePath,
-                                                photoUrl = favorite.imageLocation,
                                                 isRss = true
                                             )
                                         } ?: emptyList()
@@ -233,12 +225,12 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                                 val podcastData = RetrofitClientFront.getInstance(context)
                                     .getPodDetails(favorite.feedLink)
                                 podcastData.episodeDCS.map { episode ->
+                                    episode.photo = "https://pod-chive.com/${favorite.feedLink}/cover.webp"
+                                    episode.creator = favorite.title
+                                    episode.audioFilePath = "https://pod-chive.com/${episode.audioFilePath}"
                                     EpisodeWithShowData(
                                         episodeDC = episode,
-                                        podcastSHOWTitle = favorite.title,
                                         podcastDirectory = favorite.feedLink,
-//                                        audioUrl = "https://pod-chive.com/${episode.audioFilePath}",
-                                        photoUrl = "https://pod-chive.com/${favorite.feedLink}/cover.webp",
                                         isRss = false
                                     )
                                 } ?: emptyList()
@@ -359,11 +351,11 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                         EpisodeRow(
                             episodeDC = episodeWithPodcast.episodeDC,
                             directory = episodeWithPodcast.podcastDirectory,
-                            podcastSHOWTitle = episodeWithPodcast.podcastSHOWTitle,
+                            podcastSHOWTitle = episodeWithPodcast.episodeDC.creator,
                             navController = navController,
                             playbackState = PlaybackState.STOPPED,
                             AudioUrl = episodeWithPodcast.episodeDC.audioFilePath,
-                            PhotoUrl = episodeWithPodcast.photoUrl,
+                            PhotoUrl = episodeWithPodcast.episodeDC.photo,
                             showPodcastImage = true
                         )
                         HorizontalDivider(

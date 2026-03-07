@@ -580,14 +580,14 @@ fun EpisodeRow(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 if (episodeDC.description != null) {
-                    if (episodeDC.description.length > 60) {
+                    if (episodeDC.description!!.length > 60) {
                         HtmlText(
-                            html = episodeDC.description.slice(0..60) + "...",
+                            html = episodeDC.description!!.slice(0..60) + "...",
                             maxLines = 2,
                         )
                     } else {
                         HtmlText(
-                            html = episodeDC.description,
+                            html = episodeDC.description!!,
                             maxLines = 2,
                         )
                     }

@@ -8,6 +8,9 @@ open class Episode {
     val EpisodeName: String
     var PublishDate: String
     var PhotoUrl: String? = null
+
+    @get:JvmName("getEpisodeCreator")
+    @set:JvmName("setEpisodeCreator")
     var Creator: String? = null
     @get:JvmName("getEpisodeDescription")
     @set:JvmName("setEpisodeDescription")
@@ -26,13 +29,16 @@ open class Episode {
         this.AudioUrl = audioUrl
     }
 
-    constructor(title:String, description: String?, audioFilePath:String, puDate: String, transcript:String?)
+    constructor(title:String, description: String?, audioFilePath:String, pubDate: String,
+                transcript:String?, creator:String?, PhotoUrl:String?)
     {
         this.EpisodeName = title
         this.Description = description
         this.AudioUrl = audioFilePath
-        this.PublishDate = puDate
+        this.PublishDate = pubDate
         this.TranscriptUrl = transcript
+        this.Creator = creator
+        this.PhotoUrl = PhotoUrl
     }
 
 

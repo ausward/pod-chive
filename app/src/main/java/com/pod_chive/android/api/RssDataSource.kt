@@ -49,7 +49,9 @@ object RssDataSource {
             description = this.content ?: this.description, // Prioritize content:encoded
             audioFilePath = audioUrl,
             pubDate = this.pubDate ?: "",
-            transcript = this.commentsUrl ?: ""
+            transcript = this.commentsUrl ?: "",
+            creator = this.author ?: "Unknown Author",
+            photo = this.image?: "",
         )
 //        Log.d("RssDataSource", "Episode: $temp")
         return temp
