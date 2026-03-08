@@ -69,7 +69,7 @@ open class PodcastShow{
         this.PodcastName = PodcastName
     }
 
-    constructor(PodcastName: String, audio_location: String, Cover_Image: String, output_directory: String?, isRSS: Boolean){
+    constructor(PodcastName: String, audio_location: String, Cover_Image: String, output_directory: String?, isRSS: Boolean, description: String?, creator: String?){
         this.PodcastName = PodcastName
         this.PodcastUrl = PodcastUrl
         this.Cover_Image = Cover_Image

@@ -149,6 +149,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 // Assume it's a keyword search
                 val response = RetrofitClient.getInstance(context).searchPodcasts(term = SearchString)
                 Log.d("PodchiveAPI", "response: $response")
+                response.sort()
                 val homeItems = ArrayList(response.results.map { podcast ->
                     homeItem(
                          podcast.title,

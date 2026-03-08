@@ -9,6 +9,7 @@ import android.content.Context
 import android.os.Parcel
 import android.os.Parcelable
 import com.google.gson.annotations.SerializedName
+import com.pod_chive.android.model.PodcastShow
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import retrofit2.http.Path
@@ -16,8 +17,12 @@ import java.io.File
 import java.io.Serializable
 
 data class PodchiveResponse(
-    val results: List<Podcast>
-) : Serializable
+    var results: List<Podcast>
+) : Serializable {
+    fun sort() {
+        results = results.sortedBy { it.lastUpdate }
+        }
+}
 
 data class Podcast(
     val id: Int,
@@ -25,8 +30,9 @@ data class Podcast(
     val title: String,
     val description: String?,
     val imageUrl: String?,
-    val itunesAuthor: String?
-) : Serializable
+    val itunesAuthor: String?,
+    val lastUpdate: Long?
+) : PodcastShow(title, url, imageUrl!!, null, false, description, itunesAuthor ),  Serializable
 
 
 data class homeList(
