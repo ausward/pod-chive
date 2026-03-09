@@ -36,9 +36,13 @@ import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.pod_chive.android.api.homeItem
+import com.pod_chive.android.model.Episode
+import com.pod_chive.android.model.EpisodeNavType
+import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.ui.components.Details
 import com.pod_chive.android.ui.components.Information
 import com.pod_chive.android.ui.theme.PodchiveTheme
+import kotlin.reflect.typeOf
 
 
 class MainActivity : ComponentActivity() {
@@ -161,9 +165,9 @@ class MainActivity : ComponentActivity() {
                                 val title = backStackEntry.arguments?.getString("podcastTitle") ?: ""
                                 ShowPodDetsFromMainServer(title, navController)
                             }
-                            composable<homeItem>{ backStackEntry ->
+                            composable<PodcastShow>{ backStackEntry ->
 
-                                val Dets: homeItem = backStackEntry.toRoute()
+                                val Dets: PodcastShow = backStackEntry.toRoute()
 
                                 ShowPodDetsFromRSS(Dets, navController  )
                             }
@@ -177,9 +181,9 @@ class MainActivity : ComponentActivity() {
                                 com.pod_chive.android.queue.PlayQueueScreen(navController)
                             }
 
-                            composable<Information> { backStackEntry ->
+                            composable<Information>(typeMap = mapOf(typeOf<Episode?>() to EpisodeNavType)
+                            ) { backStackEntry ->
                                 val info: Information = backStackEntry.toRoute()
-
                                 Details(info, navController)
                             }
 //                            composable("debug_playback") {

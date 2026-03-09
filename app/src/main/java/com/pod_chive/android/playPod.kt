@@ -83,6 +83,7 @@ import java.net.URL
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import androidx.core.net.toUri
+import com.pod_chive.android.model.Episode
 
 @ExperimentalGlideComposeApi
 @OptIn(ExperimentalGlideComposeApi::class)
@@ -338,7 +339,7 @@ fun AudioPlayer(
     transcript: String? = null,
     pubdate: String? = null
 ) {
-    Log.e("DATE" , pubdate.toString())
+//    Log.e("DATE" , pubdate.toString())
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -491,17 +492,17 @@ fun AudioPlayer(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0F0F0F)) // Deep charcoal/black
-            .verticalScroll(rememberScrollState()),
+            .background(MaterialTheme.colorScheme.surface), // Deep charcoal/black
+//            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 //        val configuration = LocalConfiguration.current
-        val screenHeight = LocalWindowInfo.current.containerSize.height
+        val screenHeight = LocalWindowInfo.current.containerSize.width
 
         // Calculate dynamic artwork size based on screen height
         // Leave room for controls (~320dp) and padding
-        val availableHeight = screenHeight - 320
-        val artworkSize = (availableHeight * 0.5f).coerceIn(150f, 280f).dp
+        val availableHeight = screenHeight - 200
+        val artworkSize = (availableHeight * 0.25f).coerceIn(150f, 280f).dp
 
         // Queue button at top right
         Row(
@@ -523,9 +524,8 @@ fun AudioPlayer(
             }
             IconButton(
                 onClick =  {
-                    val temp =  Information( desc, transcript, pubdate, creator, title)
+                    val temp = Information(desc, transcript, pubdate, creator, title)
                     navController.navigate(temp)
-
                 }
             ) { Icon(
                 imageVector = Icons.AutoMirrored.Sharp.Help,

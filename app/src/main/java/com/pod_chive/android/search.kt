@@ -60,6 +60,7 @@ import com.pod_chive.android.api.RssFeedResult
 import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
+import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.ui.components.LoadingIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -73,8 +74,8 @@ sealed class SearchResultType : Serializable {
         private fun readResolve(): Any = Empty
     }
 
-    data class Podcasts(val podcasts: ArrayList<homeItem>) : SearchResultType()
-    data class RssEpisodes(val podcastSummary: homeItem, val episodeDCS: List<EpisodeDC>) : SearchResultType()
+    data class Podcasts(val podcasts: ArrayList<PodcastShow>) : SearchResultType()
+    data class RssEpisodes(val podcastSummary: PodcastShow, val episodeDCS: List<EpisodeDC>) : SearchResultType()
     data class Error(val message: String) : SearchResultType()
 }
 
@@ -130,7 +131,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 // Assume it's an RSS URL
                 when (val result = RssDataSource.parseRssFeed(SearchString)) {
                     is RssFeedResult.Success -> {
-                        Log.d("PodchiveAPI", "result: ${result.podcast.podcast_title} ${result.episodeDCS?.size}")
+                        Log.d("PodchiveAPI", "result: ${result.podcast.PodcastName} ${result.episodeDCS?.size}")
                         if (!result.episodeDCS.isNullOrEmpty()) {
 //                            Log.d("PodchiveAPI", "Episodes: ${result.episodes.size}")
                             searchResults = SearchResultType.RssEpisodes(result.podcast, result.episodeDCS)
@@ -151,13 +152,22 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 Log.d("PodchiveAPI", "response: $response")
                 response.sort()
                 val homeItems = ArrayList(response.results.map { podcast ->
-                    homeItem(
-                         podcast.title,
-                        description = podcast.description ?: "",
-                        rss_url = podcast.url,
-                        output_directory = podcast.url.substringAfterLast('/'),
-                        cover_image_url = podcast.imageUrl
+                    PodcastShow(
+                        podcast.title,
+                         podcast.showDescription ?: "",
+                         podcast.url,
+                         podcast.url.substringAfterLast('/'),
+                         podcast.imageUrl
                     )
+
+
+//                    homeItem(
+//                         podcast.title,
+//                        description = podcast.showDescription ?: "",
+//                        rss_url = podcast.url,
+//                        output_directory = podcast.url.substringAfterLast('/'),
+//                        cover_image_url = podcast.imageUrl
+//                    )
                 })
                 searchResults = SearchResultType.Podcasts(homeItems)
             }
@@ -210,7 +220,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 is SearchResultType.RssEpisodes -> {
                     Column {
                         Text(
-                            text = "Episodes from ${currentResults.podcastSummary.podcast_title}",
+                            text = "Episodes from ${currentResults.podcastSummary.PodcastName}",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
@@ -234,19 +244,19 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
 
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-fun SearchItemView(podcast: homeItem, navController: NavController) {
+fun SearchItemView(podcast: PodcastShow, navController: NavController) {
     // Added navController
     Row(modifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 8.dp)
         .clickable {
             // Determine the type of podcast and navigate accordingly
-            val type = if (podcast.rss_url.startsWith("http")) "rss" else "api"
-            val identifier = if (type == "rss") Uri.encode(podcast.rss_url) else podcast.output_directory
+            val type = if (podcast.PodcastUrl?.startsWith("http") ?: false) "rss" else "api"
+//            val identifier = if (type == "rss") Uri.encode(podcast.PodcastUrl) else podcast.outputDirectory
             navController.navigate(podcast )
         }) {
         GlideImage(
-            model = podcast.cover_image_url,
+            model = podcast.Cover_Image,
             contentDescription = "Podcast artwork",
             modifier = Modifier
                 .width(80.dp)
@@ -256,13 +266,13 @@ fun SearchItemView(podcast: homeItem, navController: NavController) {
 
         Column(modifier = Modifier.padding(start = 12.dp)) {
             Text(
-                text = podcast.podcast_title,
+                text = podcast.PodcastName?:"Unknown",
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 maxLines = 2
             )
             Text(
-                text = podcast.description,
+                text = podcast.showDescription?:"",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2
@@ -280,9 +290,9 @@ fun SearchItemView(podcast: homeItem, navController: NavController) {
 
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
+fun ShowPodDetsFromRSS(homeitems: PodcastShow, navController: NavController) {
     val context = LocalContext.current
-    var podcastData by remember { mutableStateOf<homeItem?>(null) }
+    var podcastData by remember { mutableStateOf<PodcastShow?>(null) }
     var epData by remember { mutableStateOf<List<EpisodeDC>?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     val scrollState = rememberScrollState()
@@ -302,20 +312,21 @@ fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
     LaunchedEffect(homeitems) {
         try {
 
-            when (val result = RssDataSource.parseRssFeed(homeitems.rss_url)) {
+            when (val result = RssDataSource.parseRssFeed(homeitems.PodcastUrl?:"")) {
                 is RssFeedResult.Success -> {
                     epData = result.episodeDCS
                     podcastData = result.podcast
                     Log.d(
                         "PodchiveAPI",
-                        "result: ${result.podcast.podcast_title} ${result.episodeDCS?.size}"
+                        "result: ${result.podcast.PodcastName} ${result.episodeDCS?.size}"
                     )
                     val repository = FavoritePodcastRepository(context)
-                    isFavorite = repository.isFavorite(podcastData?.rss_url)
+                    isFavorite = repository.isFavorite(podcastData?.PodcastUrl)
                     if (!result.episodeDCS.isNullOrEmpty()) {
                         Log.d("PodchiveAPI", "Episodes: ${result.episodeDCS.size}")
                         searchResults =
                             SearchResultType.RssEpisodes(result.podcast, result.episodeDCS)
+
                     } else {
                         Log.d("PodchiveAPI", "No episodes found: ${result}")
                         // If no episodes, just show the podcast summary
@@ -349,7 +360,7 @@ fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 GlideImage(
-                    model = podcastData?.cover_image_url,
+                    model = podcastData?.Cover_Image,
                     contentDescription = "Cover",
                     modifier = Modifier
                         .size(currentImageSize) // Dynamic size applied here
@@ -360,7 +371,7 @@ fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                podcastData?.podcast_title?.let {
+                podcastData?.PodcastName?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.headlineLarge,
@@ -413,7 +424,7 @@ fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
 
                 if (showStickyTitle) {
                     Text(
-                        text = podcastData?.podcast_title ?: "",
+                        text = podcastData?.PodcastName ?: "",
                         style = MaterialTheme.typography.titleLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -429,7 +440,7 @@ fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
                     val repository = FavoritePodcastRepository(context)
                     GlobalScope.launch(Dispatchers.IO) {
                         if (isFavorite) {
-                            val favorite = repository.getFavoriteByFeedLink(podcastData?.rss_url)
+                            val favorite = repository.getFavoriteByFeedLink(podcastData?.PodcastUrl)
                             if (favorite != null) {
                                 repository.deleteFavorite(favorite)
                             }
@@ -437,10 +448,11 @@ fun ShowPodDetsFromRSS(homeitems: homeItem, navController: NavController) {
 
                                 repository.insertFavorite(
                                     FavoritePodcast(
-                                        feedLink = podcastData?.rss_url ?: "",
-                                        imageLocation = podcastData?.cover_image_url ?: "",
-                                        description = podcastData?.description ?: "",
-                                        title = podcastData?.podcast_title ?: ""
+                                        feedLink = podcastData?.PodcastUrl ?: "",
+                                        imageLocation = podcastData?.Cover_Image ?: "",
+                                        description = podcastData?.showDescription ?: "",
+                                        title = podcastData?.PodcastName ?: "",
+
                                     )
                                 )
 

@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.pod_chive.android.model.PodcastShow
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.Serializable
 import androidx.core.content.edit
 
@@ -14,10 +12,10 @@ data class FavoritePodcast(
     val id: Int = 0,
     val feedLink: String,
     val imageLocation: String,
-    val description: String,
+    var description: String?,
     val title: String,
     val addedAt: Long = System.currentTimeMillis()
-) : PodcastShow(title, description, imageLocation)
+) : PodcastShow(title, feedLink, imageLocation)
 
 class FavoritePodcastRepository(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("podchive_prefs", Context.MODE_PRIVATE)

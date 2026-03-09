@@ -22,21 +22,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.pod_chive.android.HtmlText
+import com.pod_chive.android.model.Episode
 import kotlinx.serialization.Serializable
+import java.net.URL
 
 
 @Serializable
 data class Information(
-    var Desc:String? = null,
-    var Transcript:String? = null,
-    var PubDate:String? = null,
-    var Author:String? = null,
-    var Title:String? = null
+      var Description :String? = null,//= desc
+      var TranscriptUrl :String? = null,//= transcript
+  var PublishDate :String? = null,//= pubdate?:""
+  var Creator :String? = null,//= creator
+ var EpisodeName :String? = null,
+    var episode: Episode? = null
+
 )
 
 
 @Composable
 fun Details(info: Information, nav: NavController){
+
+    var TranscriptData: String? = null
+
+    if (info.TranscriptUrl != null && info.TranscriptUrl!!.contains("Http*", true)){
+        TranscriptData = URL(info.TranscriptUrl!!).readText()
+    } else {
+        TranscriptData = info.TranscriptUrl
+    }
 
 
     Box(contentAlignment = Alignment.TopStart){
@@ -57,7 +69,7 @@ fun Details(info: Information, nav: NavController){
 //                    Text(text = "Details", style = MaterialTheme.typography.titleLarge)
 //                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()){
                 Text(
-                    text = info.Title ?: "",
+                    text = info.EpisodeName ?: "",
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.titleLarge,
 
@@ -71,7 +83,7 @@ fun Details(info: Information, nav: NavController){
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     Text(
-                        text = info.Author ?: "",
+                        text = info.Creator ?: "",
                         color = MaterialTheme.colorScheme.secondary,
                         style = MaterialTheme.typography.titleMedium,
 
@@ -79,7 +91,7 @@ fun Details(info: Information, nav: NavController){
 
 
                     Text(
-                        text = info.PubDate ?: "",
+                        text = info.PublishDate ?: "",
                         color = MaterialTheme.colorScheme.tertiary,
                         style = MaterialTheme.typography.titleSmall,
                     )
@@ -92,7 +104,7 @@ fun Details(info: Information, nav: NavController){
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleLarge,
             )
-            val hasTranscript = !info.Transcript.isNullOrBlank()
+            val hasTranscript = !TranscriptData.isNullOrBlank()
 
             Box(
                 contentAlignment = Alignment.Center,
@@ -103,9 +115,9 @@ fun Details(info: Information, nav: NavController){
                     // 2. Conditionally apply the height modifier
                     .then(if (hasTranscript) Modifier.fillMaxHeight(0.5f) else Modifier)
             ) {
-                HtmlText(info.Desc ?: "")
+                HtmlText(info.Description ?: "")
             }
-            if (info.Transcript != null && info.Transcript != "") {
+            if (TranscriptData != null && TranscriptData != "") {
                 HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.tertiary)
                 Text(
                     text = "Transcript",
@@ -118,7 +130,7 @@ fun Details(info: Information, nav: NavController){
                         .padding(horizontal = 10.dp, vertical = 5.dp).fillMaxWidth(.5f)
                 ) {
 
-                    Text(text = info.Transcript ?: "", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                    Text(text = TranscriptData ?: "", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

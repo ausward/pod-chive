@@ -248,6 +248,7 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
     LaunchedEffect(directory) {
         try {
             podcastData = RetrofitClientFront.getInstance(context).getPodDetails(directory)
+            podcastData!!.placeCreatorData()
             // Check if it's already favorited
             val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
             isFavorite = repository.isFavorite(directory)

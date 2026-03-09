@@ -28,7 +28,7 @@ data class Podcast(
     val id: Int,
     val url: String,
     val title: String,
-    val description: String?,
+    var description: String?,
     val imageUrl: String?,
     val itunesAuthor: String?,
     val lastUpdate: Long?
@@ -53,10 +53,9 @@ data class homeItem(
     val podcast_title: String,
     val description: String,
     val rss_url: String,
-//    val html_summary_location: String,
-    val output_directory: String,
+    var output_directory: String,
     val cover_image_url: String? = null // New field for direct image URL
-) : Parcelable {
+) : PodcastShow(podcast_title, rss_url, cover_image_url!!), Serializable,Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readString() ?: "",
         parcel.readString() ?: "",
@@ -190,7 +189,18 @@ data class PodcastDetailResponse(
 
     @SerializedName("Episodes")
     val episodeDCS: List<EpisodeDC>
-) : Serializable
+
+
+) : Serializable{
+
+    fun placeCreatorData(){
+        for (episode in episodeDCS) {
+            if (episode.creator == null) {
+                episode.creator = podcastTitle
+            }
+        }
+    }
+}
 
 @kotlinx.serialization.Serializable
 data class EpisodeDC(

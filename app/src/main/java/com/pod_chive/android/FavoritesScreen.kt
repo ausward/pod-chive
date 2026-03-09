@@ -165,7 +165,7 @@ fun FavoritePodcastItem(
                         navController.navigate(
                             com.pod_chive.android.api.homeItem(
                                 podcast_title = favorite.title,
-                                description = favorite.description,
+                                description = favorite.showDescription?: "",
                                 rss_url = favorite.feedLink,
 //                                html_summary_location = "",
                                 output_directory = favorite.feedLink.substringAfterLast('/'),
@@ -210,7 +210,7 @@ fun FavoritePodcastItem(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = favorite.description,
+                text = favorite.showDescription?:"",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,

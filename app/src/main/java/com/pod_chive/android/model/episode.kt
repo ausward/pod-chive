@@ -1,12 +1,40 @@
 package com.pod_chive.android.model
 
+import android.net.Uri
+import android.os.Bundle
+import androidx.navigation.NavType
+import androidx.savedstate.SavedState
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import kotlinx.serialization.json.Json
+
+val EpisodeNavType = object : NavType<Episode?>(isNullableAllowed = true) {
+
+
+    override fun get(bundle: Bundle, key: String): Episode? {
+        return bundle.getString(key)?.let { Json.decodeFromString(it) }
+    }
+
+    override fun parseValue(value: String): Episode {
+        // We decode the Uri to handle special characters in URLs
+        return Json.decodeFromString(Uri.decode(value))
+    }
+
+    override fun put(bundle: Bundle, key: String, value: Episode?) {
+        bundle.putString(key, Json.encodeToString(value))
+    }
+
+    override fun serializeAsValue(value: Episode?): String {
+        // We encode the string to make it safe for a URL path
+        return Uri.encode(Json.encodeToString(value))
+    }
+}
 
 @Serializable
 open class Episode {
-    val AudioUrl: String
-    val EpisodeName: String
-    var PublishDate: String
+    var AudioUrl: String? = null
+    var EpisodeName: String? = null
+    var PublishDate: String? = null
     var PhotoUrl: String? = null
 
     @get:JvmName("getEpisodeCreator")
@@ -41,6 +69,17 @@ open class Episode {
         this.PhotoUrl = PhotoUrl
     }
 
+    /**
+     * Information constructor
+     */
+    constructor(desc:String?, transcript:String?, pubdate:String?, creator:String, title:String){
+        this.Description = desc
+        this.TranscriptUrl = transcript
+        this.PublishDate = pubdate?:""
+        this.Creator = creator
+        this.EpisodeName = title
+    }
+
 
 
 
@@ -51,11 +90,17 @@ open class PodcastShow{
     var isRSS: Boolean = false
     var PodcastUrl: String? = null
     var Cover_Image: String? = null
+    @Transient
     var EpisodeList:Array<Episode> = emptyArray()
     var html_summary_location: String? = null
     var audio_location: String? = null
 
-    var output_directory: String? = null
+    open var outputDirectory: String? = null
+
+
+    var showDescription: String? = null
+    var creator: String? = null
+
 
     constructor()
 
@@ -73,9 +118,20 @@ open class PodcastShow{
         this.PodcastName = PodcastName
         this.PodcastUrl = PodcastUrl
         this.Cover_Image = Cover_Image
-        this.output_directory = output_directory!!
+        this.outputDirectory = output_directory!!
         this.isRSS = isRSS
         this.audio_location = audio_location
+        this.showDescription = description
+        this.creator = creator
+    }
+
+
+    constructor(PodcastName: String, description: String?, url: String, output_directory: String?, imageUrl: String?) {
+        this.PodcastName = PodcastName
+        this.showDescription = description
+        this.PodcastUrl = url
+        this.outputDirectory = output_directory!!
+        this.Cover_Image = imageUrl
     }
 
 
