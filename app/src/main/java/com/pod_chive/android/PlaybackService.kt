@@ -15,13 +15,20 @@ import com.google.common.util.concurrent.ListenableFuture
 import android.app.PendingIntent
 import androidx.media3.common.Player
 import androidx.core.net.toUri
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+//import android.media.AudioAttributes
 
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private lateinit var playbackStateManager: com.pod_chive.android.playback.PlaybackStateManager
     private var lastRestoredUrl: String? = null
     private lateinit var audioManager: AudioManager
-    private var audioFocusListener: AudioManager.OnAudioFocusChangeListener? = null
+
+    private var audioAttributes = AudioAttributes.Builder()
+        .setUsage(C.USAGE_MEDIA)
+        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+        .build()
 
     private val forward30Button by lazy {
         CommandButton.Builder()
@@ -50,6 +57,8 @@ class PlaybackService : MediaSessionService() {
         val player = ExoPlayer.Builder(this)
             .setSeekForwardIncrementMs(30000)
             .build()
+
+        player.setAudioAttributes(audioAttributes, true)
 
         // Add listener to handle restoration and queue management
         player.addListener(object : Player.Listener {
@@ -81,13 +90,14 @@ class PlaybackService : MediaSessionService() {
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
+
                     // Request audio focus when starting playback
-                    requestAudioFocus()
+//                    requestAudioFocus()
                 } else {
                     // Save state when playback stops
                     savePlaybackState(player)
                     // Abandon audio focus when stopping
-                    abandonAudioFocus()
+//                    abandonAudioFocus()
                 }
             }
 
@@ -245,65 +255,10 @@ class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
-    private fun requestAudioFocus() {
-        try {
-            audioFocusListener = object : AudioManager.OnAudioFocusChangeListener {
-                override fun onAudioFocusChange(focusChange: Int) {
-                    when (focusChange) {
-                        AudioManager.AUDIOFOCUS_LOSS -> {
-                            mediaSession?.player?.pause()
-                            android.util.Log.d("AUDIO_FOCUS", "Lost focus - paused")
-                        }
-                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                            mediaSession?.player?.pause()
-                            android.util.Log.d("AUDIO_FOCUS", "Transient loss - paused")
-                        }
-                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                            mediaSession?.player?.setPlaybackSpeed(0.5f)
-                            android.util.Log.d("AUDIO_FOCUS", "Transient loss (can duck) - reduced volume")
-                        }
-                        AudioManager.AUDIOFOCUS_GAIN -> {
-                            mediaSession?.player?.play()
-                            mediaSession?.player?.setPlaybackSpeed(1f)
-                            android.util.Log.d("AUDIO_FOCUS", "Gained focus - resumed")
-                        }
-                    }
-                }
-            }
-
-            @Suppress("DEPRECATION")
-            val result = audioManager.requestAudioFocus(
-                audioFocusListener!!,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
-            )
-
-            if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                android.util.Log.d("AUDIO_FOCUS", "✓ Audio focus granted")
-            } else {
-                android.util.Log.d("AUDIO_FOCUS", "✗ Audio focus denied")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("AUDIO_FOCUS", "Error requesting audio focus: ${e.message}")
-        }
-    }
-
-    private fun abandonAudioFocus() {
-        try {
-            if (audioFocusListener != null) {
-                @Suppress("DEPRECATION")
-                audioManager.abandonAudioFocus(audioFocusListener)
-                audioFocusListener = null
-                android.util.Log.d("AUDIO_FOCUS", "✓ Audio focus abandoned")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("AUDIO_FOCUS", "Error abandoning audio focus: ${e.message}")
-        }
-    }
 
     override fun onDestroy() {
         // Abandon audio focus when the service is destroyed
-        abandonAudioFocus()
+//        abandonAudioFocus()
 
         mediaSession?.run {
             val player = this.player
