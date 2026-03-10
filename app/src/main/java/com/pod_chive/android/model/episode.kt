@@ -121,7 +121,7 @@ open class Episode {
     }
 
     override fun toString():String{
-        return "Episode(audioUrl=$AudioUrl, episodeName=$EpisodeName, publishDate=$PublishDate, photoUrl=$PhotoUrl, creator=$Creator, description=${Description?.slice(0..4)?:"null"}, transcriptUrl=$TranscriptUrl, idValue=$idValue, duration=$duration, TranscriptData=${TranscriptData?.slice(0..4)?:"null"} )"
+        return "Episode(audioUrl=$AudioUrl, episodeName=$EpisodeName, publishDate=$PublishDate, photoUrl=$PhotoUrl, creator=$Creator, description=${Description?.take(5) ?:"null"}, transcriptUrl=$TranscriptUrl, idValue=$idValue, duration=$duration, TranscriptData=${TranscriptData?.take(5) ?:"null"} )"
     }
     fun MasterToString():String{return this.toString()}
 
