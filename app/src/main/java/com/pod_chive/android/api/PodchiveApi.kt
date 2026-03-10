@@ -88,7 +88,8 @@ data class homeItem(
     }
 
     override fun toString(): String {
-        return "homeItem(podcast_Episode_title='$podcast_title', description='${description.slice(0..2)}', rss_url='$rss_url', html_summary_location='NOT USED', output_directory='$output_directory', cover_image_url='$cover_image_url')"
+        val shortDescription = description?.take(3) ?: ""
+        return "homeItem(podcast_Episode_title='$podcast_title', description='$shortDescription', rss_url='$rss_url', html_summary_location='NOT USED', output_directory='$output_directory', cover_image_url='$cover_image_url')"
 
     }
 
