@@ -27,7 +27,7 @@ object RssDataSource {
     // Helper function to convert RssChannel to homeItem
     private fun RssChannel.toHomeItem(originalRssFeedUrl: String): PodcastShow {
         val imageUrl = this.image?.url
-        val temp = PodcastShow(this.title?: "", originalRssFeedUrl, imageUrl!!, "", true, this.description ?: "No description available.", this.title )
+        val temp = PodcastShow(this.title ?: "", originalRssFeedUrl, imageUrl ?: "", "", true, this.description ?: "No description available.", this.title)
         return temp
     }
 
