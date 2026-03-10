@@ -1,7 +1,6 @@
 package com.pod_chive.android
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,22 +21,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
-import com.pod_chive.android.model.*
+import com.pod_chive.android.model.Episode
 import com.pod_chive.android.model.EpisodeNavType
 import com.pod_chive.android.model.PodcastShow
+import com.pod_chive.android.model.playEpisode
 import com.pod_chive.android.queue.PlayQueueManager
 import com.pod_chive.android.ui.components.Details
 import com.pod_chive.android.ui.components.Information
@@ -56,7 +55,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
-                var selectedItem by rememberSaveable { mutableStateOf(0) }
+                var selectedItem by rememberSaveable { mutableIntStateOf(0) }
                 val items = listOf("Home", "Search", "Play", "Favorites")
                 val routes = listOf("home", "search", "playpod", "favorites") // Match these to your NavHost routes
                 val icons = listOf(Icons.Filled.Home, Icons.Filled.Search, Icons.Filled.PlayArrow, Icons.Filled.Favorite)
@@ -134,8 +133,8 @@ class MainActivity : ComponentActivity() {
                                 ShowPodDetsFromMainServer(title, navController)
                             }
                             composable<PodcastShow>{ backStackEntry ->
-                                val Dets: PodcastShow = backStackEntry.toRoute()
-                                ShowPodDetsFromRSS(Dets, navController  )
+                                val dets: PodcastShow = backStackEntry.toRoute()
+                                ShowPodDetsFromRSS(dets, navController  )
                             }
                             composable("favorite_episodes"){
                                 FavoriteEpisodesScreen(navController)
@@ -153,8 +152,8 @@ class MainActivity : ComponentActivity() {
                                 Details(info, navController)
                             }
                             composable("playpod"){
-                               var pqm = PlayQueueManager(context = this@MainActivity)
-                                var playingObj = pqm.getCurrentItem()
+                               val pqm = PlayQueueManager(context = this@MainActivity)
+                                val playingObj = pqm.getCurrentItem()
                                 if (playingObj != null) {
                                     PlayPod(navController, playingObj)
                                 }

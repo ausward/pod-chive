@@ -5,22 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import com.pod_chive.android.model.Episode
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-//
-//@Serializable
-//data class QueueItem(
-//    val id: String, // Unique ID (could be timestamp + title hash)
-//    val title: String,
-//    val audioUrl: String,
-//    val photoUrl: String,
-//    val creator: String,
-//    val description: String? = null,
-//    val addedAt: Long = System.currentTimeMillis(),
-//    val transcript: String? = null,
-//    val publishDate: String? = null
-//): Episode(title, description, audioUrl, publishDate?:"", transcript, creator, photoUrl, id)
-
 
 class PlayQueueManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("podchive_queue", Context.MODE_PRIVATE)
