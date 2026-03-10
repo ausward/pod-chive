@@ -55,7 +55,7 @@ data class homeItem(
     val rss_url: String,
     var output_directory: String,
     val cover_image_url: String? = null // New field for direct image URL
-) : PodcastShow(podcast_title, rss_url, cover_image_url!!), Serializable,Parcelable {
+) : PodcastShow(podcast_title, rss_url, cover_image_url ?: ""), Serializable,Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readString() ?: "",
         parcel.readString() ?: "",
