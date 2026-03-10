@@ -41,6 +41,7 @@ import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
+import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.ui.components.LoadingIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -162,14 +163,12 @@ fun FavoritePodcastItem(
                     // It's an RSS feed URL - navigate using homeItem route
                     // We need to pass a homeItem object with the RSS URL
                     try {
-                        navController.navigate(
-                            com.pod_chive.android.api.homeItem(
-                                podcast_title = favorite.title,
-                                description = favorite.description,
-                                rss_url = favorite.feedLink,
-                                html_summary_location = "",
-                                output_directory = favorite.feedLink.substringAfterLast('/'),
-                                cover_image_url = favorite.imageLocation
+                        navController.navigate(PodcastShow(
+                                 favorite.title,
+                                favorite.showDescription?: "",
+                                 favorite.feedLink,
+                                 favorite.feedLink.substringAfterLast('/'),
+                                favorite.imageLocation
                             )
                         )
                     } catch (e: Exception) {
@@ -210,28 +209,12 @@ fun FavoritePodcastItem(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = favorite.description,
+                text = favorite.showDescription?:"",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }
-
-//        IconButton(
-//            onClick = {
-//                val repository = FavoritePodcastRepository(context)
-//                GlobalScope.launch(Dispatchers.IO) {
-//                    repository.deleteFavorite(favorite)
-//                    onDelete(favorite)
-//                }
-//            }
-//        ) {
-//            Icon(
-//                imageVector = Icons.Filled.Delete,
-//                contentDescription = "Delete favorite",
-//                tint = MaterialTheme.colorScheme.error
-//            )
-//        }
     }
 }

@@ -1,7 +1,6 @@
 package com.pod_chive.android
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,23 +21,27 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
-import com.pod_chive.android.api.homeItem
+import com.pod_chive.android.model.Episode
+import com.pod_chive.android.model.EpisodeNavType
+import com.pod_chive.android.model.PodcastShow
+import com.pod_chive.android.model.playEpisode
+import com.pod_chive.android.queue.PlayQueueManager
 import com.pod_chive.android.ui.components.Details
 import com.pod_chive.android.ui.components.Information
 import com.pod_chive.android.ui.theme.PodchiveTheme
+import kotlin.reflect.typeOf
 
 
 class MainActivity : ComponentActivity() {
@@ -52,7 +55,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
-                var selectedItem by rememberSaveable { mutableStateOf(0) }
+                var selectedItem by rememberSaveable { mutableIntStateOf(0) }
                 val items = listOf("Home", "Search", "Play", "Favorites")
                 val routes = listOf("home", "search", "playpod", "favorites") // Match these to your NavHost routes
                 val icons = listOf(Icons.Filled.Home, Icons.Filled.Search, Icons.Filled.PlayArrow, Icons.Filled.Favorite)
@@ -125,47 +128,13 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
-                            composable(
-                                route = "playpod?audioUrl={audioUrl}&title={title}&photoUrl={photoUrl}&creator={creator}&desc={desc}&transcripturl={transcripturl}&publishDate={publishDate}",
-                                arguments = listOf(
-                                    navArgument("audioUrl") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("title") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("photoUrl") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("creator") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("desc") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("transcripturl") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("publishDate") { type = NavType.StringType; nullable = true; defaultValue = null },
-
-                                )
-                            ) { backStackEntry ->
-                                val audioUrl = backStackEntry.arguments?.getString("audioUrl")
-                                val title = backStackEntry.arguments?.getString("title")
-                                val photoUrl = backStackEntry.arguments?.getString("photoUrl")
-                                val creator = backStackEntry.arguments?.getString("creator")
-                                val desc = backStackEntry.arguments?.getString("desc")
-                                val transcripturl = backStackEntry.arguments?.getString("transcripturl")
-                                val publishDate = backStackEntry.arguments?.getString("publishDate")
-                                Log.e("DATE!", backStackEntry.arguments?.getString("publishDate").toString())
-                                PlayPod(
-                                    navController = navController,
-                                    audioUrl = audioUrl,
-                                    title = title,
-                                    photoUrl = photoUrl,
-                                    creator = creator,
-                                    desc = desc,
-                                    transcripturl = transcripturl,
-                                    pubdate = publishDate
-                                )
-                            }
                             composable("details/{podcastTitle}") { backStackEntry ->
                                 val title = backStackEntry.arguments?.getString("podcastTitle") ?: ""
                                 ShowPodDetsFromMainServer(title, navController)
                             }
-                            composable<homeItem>{ backStackEntry ->
-
-                                val Dets: homeItem = backStackEntry.toRoute()
-
-                                ShowPodDetsFromRSS(Dets, navController  )
+                            composable<PodcastShow>{ backStackEntry ->
+                                val dets: PodcastShow = backStackEntry.toRoute()
+                                ShowPodDetsFromRSS(dets, navController  )
                             }
                             composable("favorite_episodes"){
                                 FavoriteEpisodesScreen(navController)
@@ -177,10 +146,26 @@ class MainActivity : ComponentActivity() {
                                 com.pod_chive.android.queue.PlayQueueScreen(navController)
                             }
 
-                            composable<Information> { backStackEntry ->
+                            composable<Information>(typeMap = mapOf(typeOf<Episode?>() to EpisodeNavType)
+                            ) { backStackEntry ->
                                 val info: Information = backStackEntry.toRoute()
-
                                 Details(info, navController)
+                            }
+                            composable("playpod"){
+                               val pqm = PlayQueueManager(context = this@MainActivity)
+                                val playingObj = pqm.getCurrentItem()
+                                if (playingObj != null) {
+                                    PlayPod(navController, playingObj)
+                                }
+
+
+                            }
+                            composable<playEpisode>(typeMap = mapOf(typeOf<Episode?>() to EpisodeNavType)
+                            ) {
+
+                                val temp = it.toRoute<playEpisode>()
+//                                val final = Episode(temp.Title, temp.description, temp.audioFilePath, temp.pubdate?:"", temp.transcript, temp.Creator, temp.PhotoUrl)
+                                PlayPod(navController, temp.EpisodeObj!!)
                             }
 //                            composable("debug_playback") {
 //                                PlaybackDebugScreen(navController)

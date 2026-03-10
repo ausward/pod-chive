@@ -9,6 +9,7 @@ import android.content.Context
 import android.os.Parcel
 import android.os.Parcelable
 import com.google.gson.annotations.SerializedName
+import com.pod_chive.android.model.PodcastShow
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import retrofit2.http.Path
@@ -16,17 +17,22 @@ import java.io.File
 import java.io.Serializable
 
 data class PodchiveResponse(
-    val results: List<Podcast>
-) : Serializable
+    var results: List<Podcast>
+) : Serializable {
+    fun sort() {
+        results = results.sortedBy { it.lastUpdate }
+        }
+}
 
 data class Podcast(
     val id: Int,
     val url: String,
     val title: String,
-    val description: String?,
+    var description: String?,
     val imageUrl: String?,
-    val itunesAuthor: String?
-) : Serializable
+    val itunesAuthor: String?,
+    val lastUpdate: Long?
+) : PodcastShow(title, url, imageUrl!!, null, false, description, itunesAuthor ),  Serializable
 
 
 data class homeList(
@@ -34,18 +40,26 @@ data class homeList(
 ) : Serializable
 
 @kotlinx.serialization.Serializable
+/**
+ * DO NOT CHANGE THE SIGNATURE. THE PARAMS MUST MACH TEH RESULTS FROM https://api.pod-chive.com/list_podcasts
+ * @param podcast_title podcast SHOW title
+ * @param description podcast show description
+ * @param rss_url podcast OG rss feed
+ * /@param html_summary_location  NOT USED, REMOVED
+ * @param output_directory  location of podcast data on server
+ * @param cover_image_url  location of podcast show cover image
+ */
 data class homeItem(
     val podcast_title: String,
     val description: String,
     val rss_url: String,
-    val html_summary_location: String,
-    val output_directory: String,
+    var output_directory: String,
     val cover_image_url: String? = null // New field for direct image URL
-) : Parcelable {
+) : PodcastShow(podcast_title, rss_url, cover_image_url ?: ""), Serializable,Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readString() ?: "",
         parcel.readString() ?: "",
-        parcel.readString() ?: "",
+//        parcel.readString() ?: "",
         parcel.readString() ?: "",
         parcel.readString() ?: "",
         parcel.readString()
@@ -55,7 +69,6 @@ data class homeItem(
         parcel.writeString(podcast_title)
         parcel.writeString(description)
         parcel.writeString(rss_url)
-        parcel.writeString(html_summary_location)
         parcel.writeString(output_directory)
         parcel.writeString(cover_image_url)
     }
@@ -73,6 +86,13 @@ data class homeItem(
             return arrayOfNulls(size)
         }
     }
+
+    override fun toString(): String {
+        val shortDescription = description?.take(3) ?: ""
+        return "homeItem(podcast_Episode_title='$podcast_title', description='$shortDescription', rss_url='$rss_url', html_summary_location='NOT USED', output_directory='$output_directory', cover_image_url='$cover_image_url')"
+
+    }
+
 }
 
 
@@ -91,8 +111,6 @@ object RetrofitClient {
 
             val okHttpClient = OkHttpClient.Builder()
                 .cache(myCache)
-                // Optional: Add an interceptor here if the API doesn't
-                // provide Cache-Control headers (see below)
                 .build()
 
             val instance = Retrofit.Builder()
@@ -168,22 +186,43 @@ data class PodcastDetailResponse(
     val podcastTitle: String,
 
     @SerializedName("Episodes")
-    val episodes: List<Episode>
-) : Serializable
+    val episodeDCS: List<EpisodeDC>
 
-data class Episode(
+
+) : Serializable{
+
+    fun placeCreatorData(){
+        for (episode in episodeDCS) {
+            if (episode.creator == null) {
+                episode.creator = podcastTitle
+            }
+        }
+    }
+}
+
+@kotlinx.serialization.Serializable
+data class EpisodeDC(
     @SerializedName("Title")
     val title: String,
 
     @SerializedName("description") // This one was lowercase in your sample
-    val description: String?,
+    var description: String?,
 
     @SerializedName("AudioFilePath")
-    val audioFilePath: String,
+    var audioFilePath: String,
 
     @SerializedName("pubDate")
     val pubDate: String,
 
     @SerializedName("transcript")
-    val transcript: String?
-) : Serializable
+    val transcript: String?,
+
+    @SerializedName("creator")
+    var creator: String?,
+
+    @SerializedName("photo")
+    var photo: String?
+
+) : com.pod_chive.android.model.Episode(title, description, audioFilePath, pubDate, transcript,
+    creator, photo),
+    Serializable

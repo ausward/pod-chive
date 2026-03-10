@@ -1,6 +1,7 @@
 package com.pod_chive.android
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,7 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.pod_chive.android.api.Episode
+import com.pod_chive.android.api.EpisodeDC
 import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.RssDataSource
 import com.pod_chive.android.api.RssFeedResult
@@ -46,95 +47,57 @@ import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.core.content.edit
+import com.pod_chive.android.database.FavoritePodcast
+import kotlinx.serialization.Contextual
 
-data class EpisodeWithPodcast(
-    val episode: Episode,
-    val podcastTitle: String,
+@Serializable
+/**
+ * Represents an episode with associated podcast information.
+ *
+ */
+data class EpisodeWithShowData(
+    @Contextual
+    val episodeDC: EpisodeDC,
     val podcastDirectory: String?,
-    val audioUrl: String,
-    val photoUrl: String,
     val isRss: Boolean
 )
 
-@Serializable
-private data class CachedEpisodeWithPodcast(
-    val title: String,
-    val description: String? = null,
-    val audioFilePath: String,
-    val pubDate: String,
-    val podcastTitle: String,
-    val podcastDirectory: String? = null,
-    val audioUrl: String,
-    val photoUrl: String,
-    val isRss: Boolean,
-    val transcript: String? = null
-)
+
 
 @Serializable
 private data class FavoriteEpisodesCachePayload(
     val favoritesSignature: String,
     val cachedAtMs: Long,
-    val episodes: List<CachedEpisodeWithPodcast>
+    val episodes: List<EpisodeWithShowData>
 )
 
 private class FavoriteEpisodesPageCache(context: Context) {
     private val prefs = context.getSharedPreferences("favorite_episodes_cache", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun load(favoritesSignature: String, ttlMs: Long): List<EpisodeWithPodcast>? {
+    fun load(favoritesSignature: String, ttlMs: Long): List<EpisodeWithShowData>? {
         val raw = prefs.getString("payload", null) ?: return null
         return try {
             val payload = json.decodeFromString<FavoriteEpisodesCachePayload>(raw)
             val notExpired = System.currentTimeMillis() - payload.cachedAtMs <= ttlMs
             if (!notExpired || payload.favoritesSignature != favoritesSignature) return null
-            payload.episodes.map { it.toEpisodeWithPodcast() }
+            payload.episodes
         } catch (_: Exception) {
             null
         }
     }
 
-    fun save(favoritesSignature: String, episodes: List<EpisodeWithPodcast>) {
+    fun save(favoritesSignature: String, episodes: List<EpisodeWithShowData>) {
         val payload = FavoriteEpisodesCachePayload(
             favoritesSignature = favoritesSignature,
             cachedAtMs = System.currentTimeMillis(),
-            episodes = episodes.map { it.toCachedEpisode() }
+            episodes = episodes
         )
         prefs.edit { putString("payload", json.encodeToString(payload)) }
     }
-
-    private fun CachedEpisodeWithPodcast.toEpisodeWithPodcast(): EpisodeWithPodcast {
-        return EpisodeWithPodcast(
-            episode = Episode(
-                title = title,
-                description = description,
-                audioFilePath = audioFilePath,
-                pubDate = pubDate,
-                transcript = transcript
-            ),
-            podcastTitle = podcastTitle,
-            podcastDirectory = podcastDirectory,
-            audioUrl = audioUrl,
-            photoUrl = photoUrl,
-            isRss = isRss
-        )
-    }
-
-    private fun EpisodeWithPodcast.toCachedEpisode(): CachedEpisodeWithPodcast {
-        return CachedEpisodeWithPodcast(
-            title = episode.title,
-            description = episode.description,
-            audioFilePath = episode.audioFilePath,
-            pubDate = episode.pubDate,
-            podcastTitle = podcastTitle,
-            podcastDirectory = podcastDirectory,
-            audioUrl = audioUrl,
-            photoUrl = photoUrl,
-            isRss = isRss
-        )
-    }
 }
 
-private fun buildFavoritesSignature(favorites: List<com.pod_chive.android.database.FavoritePodcast>): String {
+private fun buildFavoritesSignature(favorites: List<FavoritePodcast>): String {
     return favorites
         .map { "${it.feedLink}|${it.title}|${it.imageLocation}" }
         .sorted()
@@ -163,7 +126,7 @@ private fun parseEpisodeTimeMillis(pubDate: String): Long {
 @Composable
 fun FavoriteEpisodesScreen(navController: NavController) {
     val context = LocalContext.current
-    var episodes by remember { mutableStateOf<List<EpisodeWithPodcast>>(emptyList()) }
+    var episodes by remember { mutableStateOf<List<EpisodeWithShowData>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -203,19 +166,16 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                                 // RSS feed
                                 when (val result = RssDataSource.parseRssFeed(favorite.feedLink)) {
                                     is RssFeedResult.Success -> {
-                                        result.episodes?.map { episode ->
-                                            EpisodeWithPodcast(
-                                                episode = episode,
-                                                podcastTitle = favorite.title,
+                                        result.episodeDCS?.map { episode ->
+                                            EpisodeWithShowData(
+                                                episodeDC = episode,
                                                 podcastDirectory = null,
-                                                audioUrl = episode.audioFilePath,
-                                                photoUrl = favorite.imageLocation,
                                                 isRss = true
                                             )
                                         } ?: emptyList()
                                     }
                                     is RssFeedResult.Error -> {
-                                        android.util.Log.e("FavoriteEpisodes", "RSS Parse Error: ${result.message}")
+                                        Log.e("FavoriteEpisodes", "RSS Parse Error: ${result.message}")
                                         emptyList()
                                     }
                                 }
@@ -223,26 +183,26 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                                 // Local podcast
                                 val podcastData = RetrofitClientFront.getInstance(context)
                                     .getPodDetails(favorite.feedLink)
-                                podcastData.episodes.map { episode ->
-                                    EpisodeWithPodcast(
-                                        episode = episode,
-                                        podcastTitle = favorite.title,
+                                podcastData.episodeDCS.map { episode ->
+                                    episode.photo = "https://pod-chive.com/${favorite.feedLink}/cover.webp"
+                                    episode.creator = favorite.title
+                                    episode.audioFilePath = "${episode.audioFilePath}"
+                                    EpisodeWithShowData(
+                                        episodeDC = episode,
                                         podcastDirectory = favorite.feedLink,
-                                        audioUrl = "https://pod-chive.com/${episode.audioFilePath}",
-                                        photoUrl = "https://pod-chive.com/${favorite.feedLink}/cover.webp",
                                         isRss = false
                                     )
                                 } ?: emptyList()
                             }
                         } catch (e: Exception) {
-                            android.util.Log.e("FavoriteEpisodes", "Error loading ${favorite.title}: ${e.message}")
+                            Log.e("FavoriteEpisodes", "Error loading ${favorite.title}: ${e.message}")
                             emptyList()
                         }
                     }
                 }.awaitAll().flatten()
             }
 
-            val sortedEpisodes = allEpisodes.sortedByDescending { parseEpisodeTimeMillis(it.episode.pubDate) }
+            val sortedEpisodes = allEpisodes.sortedByDescending { parseEpisodeTimeMillis(it.episodeDC.pubDate) }
             episodes = sortedEpisodes
 
             withContext(Dispatchers.IO) {
@@ -252,7 +212,7 @@ fun FavoriteEpisodesScreen(navController: NavController) {
             if (episodes.isEmpty()) {
                 errorMessage = "Error loading episodes: ${e.message}"
             }
-            android.util.Log.e("FavoriteEpisodes", "Error: ${e.message}", e)
+            Log.e("FavoriteEpisodes", "Error: ${e.message}", e)
         } finally {
             isLoading = false
         }
@@ -340,18 +300,21 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                 }
             }
             else -> {
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(episodes) { episodeWithPodcast ->
+
+
                         EpisodeRow(
-                            episode = episodeWithPodcast.episode,
+                            episodeDC = episodeWithPodcast.episodeDC,
                             directory = episodeWithPodcast.podcastDirectory,
-                            podcastTitle = episodeWithPodcast.podcastTitle,
+//                            podcastSHOWTitle = episodeWithPodcast.episodeDC.creator,
                             navController = navController,
                             playbackState = PlaybackState.STOPPED,
-                            AudioUrl = episodeWithPodcast.audioUrl,
-                            PhotoUrl = episodeWithPodcast.photoUrl,
+//                            AudioUrl = episodeWithPodcast.episodeDC.audioFilePath,
+//                            PhotoUrl = episodeWithPodcast.episodeDC.photo,
                             showPodcastImage = true
                         )
                         HorizontalDivider(

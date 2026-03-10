@@ -74,11 +74,12 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.google.common.util.concurrent.MoreExecutors
-import com.pod_chive.android.api.Episode
+import com.pod_chive.android.api.EpisodeDC
 import com.pod_chive.android.api.PodcastDetailResponse
 import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.homeItem
+import com.pod_chive.android.model.Episode
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayBackProgressVis
 import com.pod_chive.android.ui.components.LoadingIndicator
@@ -87,6 +88,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.core.net.toUri
 
 
 @Composable
@@ -106,6 +108,8 @@ fun HomePage(navController: NavController ) {
             val res = RetrofitClient.getInstance(context = context ).listPodcasts()
 
             podcasts = ArrayList(res.podcasts)
+
+            Log.d("PODCASTS", podcasts.toString())
         } catch (e: Exception) {
             error = e.message.toString()
         } finally {
@@ -182,15 +186,15 @@ fun MainPodListExpanderHor(podcast: homeItem, onItemClick: () -> Unit ){
             )
         Column(modifier = Modifier.padding(horizontal = 8.dp)) {
             Text(
-                text = podcast.podcast_title,
+                text = podcast.podcast_title ?: "",
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 maxLines = 1,
             )
-            if (podcast.description != null) {
-
+            podcast.description?.let { desc ->
                 HorizontalDivider(color = Color.LightGray, thickness = 3.dp)
-                HtmlText(html = podcast.description.slice(0..60) + "...", maxLines = 4)
+                val displayDesc = if (desc.length > 60) desc.take(60) + "..." else desc
+                HtmlText(html = displayDesc, maxLines = 4)
             }
             
         }
@@ -211,7 +215,7 @@ fun MainPodGridItem(podcast: homeItem, onItemClick: () -> Unit) {
                 loading = placeholder(R.mipmap.shrug)
             )
             Text(
-                text = podcast.podcast_title,
+                text = podcast.podcast_title ?: "",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 maxLines = 1,
@@ -246,6 +250,7 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
     LaunchedEffect(directory) {
         try {
             podcastData = RetrofitClientFront.getInstance(context).getPodDetails(directory)
+            podcastData!!.placeCreatorData()
             // Check if it's already favorited
             val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
             isFavorite = repository.isFavorite(directory)
@@ -295,11 +300,11 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
 
             // --- Episode List ---
             // Since we aren't in a LazyColumn, we use a simple forEach
-            podcastData?.episodes?.forEach { episode ->
+            podcastData?.episodeDCS?.forEach { episode ->
                 EpisodeRow(
                     episode,
                     directory,
-                    podcastData?.podcastTitle,
+//                    podcastData?.podcastTitle,
                     navController,
                     PlaybackState.STOPPED
                 )
@@ -381,13 +386,10 @@ enum class PlaybackState { PLAYING, PAUSED, STOPPED }
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 fun EpisodeRow(
-    episode: Episode,
+    episodeDC: EpisodeDC,
     directory: String? = null,
-    podcastTitle: String?,
     navController: NavController,
     playbackState: PlaybackState,
-    AudioUrl: String? = null,
-    PhotoUrl: String? = null,
     showPodcastImage: Boolean = false
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -399,11 +401,11 @@ fun EpisodeRow(
     var audioUrl = ""
     var photoUrl = ""
     if (directory != null) {
-        audioUrl = "https://pod-chive.com/${episode.audioFilePath}"
+        audioUrl = "https://pod-chive.com/${episodeDC.audioFilePath}"
         photoUrl = "https://pod-chive.com/$directory/cover.webp"
     } else {
-        audioUrl = AudioUrl ?: ""
-        photoUrl = PhotoUrl ?: ""
+        audioUrl = episodeDC.audioFilePath
+        photoUrl = episodeDC.photo?:""
     }
 
 //    val context = LocalContext.current
@@ -419,15 +421,12 @@ fun EpisodeRow(
     }
     state = stateManager.getPlaybackState(audioUrl) ?: com.pod_chive.android.playback.PlaybackState(
         audioUrl = audioUrl,
-        title = episode.title,
-        creator = podcastTitle ?: "Unknown",
+        title = episodeDC.title ?: "",
+        creator = episodeDC.creator ?: "Unknown",
         photoUrl = photoUrl,
         currentPosition = 0,
         duration = 0
     )
-
-
-
 
     DisposableEffect(Unit) {
         val sessionToken =
@@ -452,11 +451,11 @@ fun EpisodeRow(
                 }
             },
             title = {
-                Text(text = episode.title, style = MaterialTheme.typography.titleLarge)
+                Text(text = episodeDC.title ?: "", style = MaterialTheme.typography.titleLarge)
             },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    HtmlText(html = episode.description ?: "No description available.")
+                    HtmlText(html = episodeDC.description ?: "No description available.")
                 }
             }
         )
@@ -465,38 +464,47 @@ fun EpisodeRow(
     // Helper function to add to queue
     val addToQueue: (String, String) -> Unit = { audioUrl, photoUrl ->
         val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
-        val queueItem = com.pod_chive.android.queue.QueueItem(
-            id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-            title = episode.title,
-            audioUrl = audioUrl,
-            photoUrl = photoUrl,
-            creator = podcastTitle ?: "Unknown",
-            description = episode.description,
-            transcript = episode.transcript,
-        )
-        queueManager.addToQueue(queueItem)
-        Log.d("QUEUE", "Added to queue: ${episode.title}")
+       episodeDC.idValue = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl)
+        episodeDC.AudioUrl = audioUrl
+        episodeDC.PhotoUrl = photoUrl
+
+        Log.d("HOME470", episodeDC.toString())
+
+
+//        val queueItem = com.pod_chive.android.queue.QueueItem(
+//            id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
+//            title = episodeDC.title ?: "",
+//            audioUrl = audioUrl,
+//            photoUrl = photoUrl,
+//            creator = episodeDC.creator ?: "Unknown",
+//            description = episodeDC.description,
+//            transcript = episodeDC.transcript,
+//        )
+
+
+        queueManager.addToQueue(episodeDC)
+        Log.d("QUEUE", "Added to queue: ${episodeDC.title}")
         android.widget.Toast.makeText(context, "Added to queue", android.widget.Toast.LENGTH_SHORT)
             .show()
     }
 
     // Helper function to play
-    val playEpisode: (String, String) -> Unit = { audioUrl, photoUrl ->
+    val playEpisode: (Episode) -> Unit = { episodeDC ->
         if (controller != null) {
             Log.d("LINK", "Clicked play button")
             Log.d("LINK", "Playing audio URL: $audioUrl")
 
             val player = controller
             if (player != null) {
-                Log.e("LINK", AudioUrl ?: "Audio URL is null")
+                Log.e("LINK", audioUrl ?: "Audio URL is null")
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(audioUrl)
                     .setUri(Uri.parse(audioUrl))
                     .setMediaMetadata(
                         MediaMetadata.Builder()
-                            .setTitle(episode.title)
-                            .setArtist(podcastTitle)
-                            .setArtworkUri(Uri.parse(photoUrl))
+                            .setTitle(episodeDC.EpisodeName ?: "")
+                            .setArtist(episodeDC.Creator ?: "Unknown")
+                            .setArtworkUri(photoUrl.toUri())
                             .build()
                     )
                     .build()
@@ -507,30 +515,37 @@ fun EpisodeRow(
 
                 // Add episode to queue at the top
                 val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
-                val queueItem = com.pod_chive.android.queue.QueueItem(
-                    id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-                    title = episode.title,
-                    audioUrl = audioUrl,
-                    photoUrl = photoUrl,
-                    creator = podcastTitle ?: "Unknown",
-                    description = episode.description,
-                    transcript = episode.transcript,
-                    publishDate = episode.pubDate
-                )
-                queueManager.addToQueue(queueItem)
-                queueManager.moveToTop(queueItem.id)
-                Log.d("QUEUE", "Added and moved to top: ${episode.title}")
+                episodeDC.idValue = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl)
+                episodeDC.AudioUrl = audioUrl
+                episodeDC.PhotoUrl = photoUrl
+//                val queueItem = com.pod_chive.android.queue.QueueItem(
+//                    id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
+//                    title = episodeDC.title ?: "",
+//                    audioUrl = audioUrl,
+//                    photoUrl = photoUrl,
+//                    creator = episodeDC.creator ?: "Unknown",
+//                    description = episodeDC.description,
+//                    transcript = episodeDC.transcript,
+//                    publishDate = episodeDC.pubDate
+//                )
+                queueManager.addToQueue(episodeDC)
+                queueManager.moveToTop(com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl))
+                Log.d("QUEUE", "Added and moved to top: ${episodeDC.EpisodeName}")
 
-                val encodedAudioUrl = Uri.encode(audioUrl)
-                val encodedTitle = Uri.encode(episode.title)
-                val encodedPhotoUrl = Uri.encode(photoUrl)
-                val encodedCreator = Uri.encode(podcastTitle ?: "")
-                val encodedDescription = Uri.encode(episode.description ?: "")
-                val encodedTranscript = Uri.encode(episode.transcript ?: "")
-                val encodedDate = Uri.encode(episode.pubDate ?: "")
-                navController.navigate(
-                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcript=$encodedTranscript&publishDate=$encodedDate"
-                )
+//                val encodedAudioUrl = Uri.encode(audioUrl)
+//                val encodedTitle = Uri.encode(episodeDC.title ?: "")
+//                val encodedPhotoUrl = Uri.encode(photoUrl)
+//                val encodedCreator = Uri.encode(episodeDC.creator ?: "")
+//                val encodedDescription = Uri.encode(episodeDC.description ?: "")
+//                val encodedTranscript = Uri.encode(episodeDC.transcript ?: "")
+//                val encodedDate = Uri.encode(episodeDC.pubDate ?: "")
+//                navController.navigate(
+//                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcript=$encodedTranscript&publishDate=$encodedDate"
+//                )\
+
+                Log.d("HOME546", episodeDC.MasterToString())
+//                navController.navigate(episodeDC.toPlayEpisode())
+                navController.navigate("playpod")
             }
         }
     }
@@ -565,13 +580,16 @@ fun EpisodeRow(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = episode.title,
+                    text = episodeDC.title ?: "",
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+                val displayDate = episodeDC.pubDate?.let { 
+                    if (it.length >= 16) it.substring(0, 16) else it 
+                } ?: ""
                 Text(
-                    text = episode.pubDate.substring(0, 16),
+                    text = displayDate,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
@@ -579,24 +597,20 @@ fun EpisodeRow(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
-                if (episode.description != null) {
-                    if (episode.description.length > 60) {
-                        HtmlText(
-                            html = episode.description.slice(0..60) + "...",
-                            maxLines = 2,
-                        )
-                    } else {
-                        HtmlText(
-                            html = episode.description,
-                            maxLines = 2,
-                        )
-                    }
+                episodeDC.description?.let { desc ->
+                    val displayDesc = if (desc.length > 60) desc.take(60) + "..." else desc
+                    HtmlText(
+                        html = displayDesc,
+                        maxLines = 2,
+                    )
                 }
+                
                 if (state.duration > 0) {
 //                     var progressPercent = 100f * state.currentPosition.toFloat() / state.duration.toFloat()
 //                    (state.currentPosition.toFloat() / state.duration.toFloat() * 100f)
                     if (state.currentPosition >= state.duration - 50) {
-                        Text(text = "Completed",
+                        Text(
+                            text = "Completed",
                             color = MaterialTheme.colorScheme.tertiary,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -631,13 +645,17 @@ fun EpisodeRow(
                     var audioUrl = ""
                     var photoUrl = ""
                     if (directory != null) {
-                        audioUrl = "https://pod-chive.com/${episode.audioFilePath}"
+                        audioUrl = "${episodeDC.audioFilePath}"
                         photoUrl = "https://pod-chive.com/$directory/cover.webp"
                     } else {
-                        audioUrl = AudioUrl ?: return@IconButton
-                        photoUrl = PhotoUrl ?: return@IconButton
+                        audioUrl = episodeDC.audioFilePath ?: return@IconButton
+                        photoUrl = episodeDC.photo ?: return@IconButton
                     }
-                    playEpisode(audioUrl, photoUrl)
+                    val Temp = Episode(audioUrl, episodeDC.title ?: "", episodeDC.pubDate ?: "", photoUrl)
+                    Temp.TranscriptUrl = episodeDC.transcript
+                    Temp.Creator = episodeDC.creator
+                    Temp.Description = episodeDC.description
+                    playEpisode(Temp)
                 },
                 modifier = Modifier.size(48.dp)
             ) {
@@ -669,6 +687,6 @@ fun HtmlText(html: String, modifier: Modifier = Modifier, maxLines: Int = Int.MA
                 setTextColor(textColor)
             }
         },
-        update = { it.text = HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_COMPACT) }
+        update = { it.text = HtmlCompat.fromHtml(html ?: "", HtmlCompat.FROM_HTML_MODE_COMPACT) }
     )
 }

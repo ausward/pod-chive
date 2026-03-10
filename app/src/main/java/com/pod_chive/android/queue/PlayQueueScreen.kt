@@ -47,6 +47,8 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.core.net.toUri
+import com.pod_chive.android.model.Episode
+import java.util.UUID
 
 @OptIn(ExperimentalGlideComposeApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -81,9 +83,9 @@ fun PlayQueueScreen(navController: NavController) {
             // Load playback states for all queue items
             val states = mutableMapOf<String, PlaybackState>()
             queueItems.forEach { item ->
-                val state = playbackStateManager.getPlaybackState(item.audioUrl)
+                val state = playbackStateManager.getPlaybackState(item.AudioUrl?:"")
                 if (state != null) {
-                    states[item.audioUrl] = state
+                    states[item.AudioUrl?:""] = state
                 }
             }
             playbackStates = states
@@ -148,6 +150,9 @@ fun PlayQueueScreen(navController: NavController) {
                     )
                 }
             }
+
+
+
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -156,16 +161,16 @@ fun PlayQueueScreen(navController: NavController) {
             ) {
                 itemsIndexed(
                     items = queueItems,
-                    key = { _, item -> item.id }
+                    key = { _, item -> item.idValue?: UUID.randomUUID().toString() }
                 ) { index, item ->
-                    val playbackState = playbackStates[item.audioUrl]
+                    val playbackState = playbackStates[item.AudioUrl]
                     QueueItemRow(
                         item = item,
                         isCurrentlyPlaying = index == currentIndex,
                         playbackState = playbackState,
-                        isActionsRevealed = revealedRowId == item.id,
-                        onRevealActions = { revealedRowId = item.id },
-                        onHideActions = { if (revealedRowId == item.id) revealedRowId = null },
+                        isActionsRevealed = revealedRowId == item.idValue,
+                        onRevealActions = { revealedRowId = item.idValue },
+                        onHideActions = { if (revealedRowId == item.idValue) revealedRowId = null },
                         onMoveUp = {
                             if (index <= 0) return@QueueItemRow
                             coroutineScope.launch(Dispatchers.IO) {
@@ -210,18 +215,18 @@ fun PlayQueueScreen(navController: NavController) {
                             val player = controller?: return@QueueItemRow
 
                             val mediaItem = MediaItem.Builder()
-                                .setMediaId(item.audioUrl)
-                                .setUri(item.audioUrl.toUri())
+                                .setMediaId(item.AudioUrl!!)
+                                .setUri(item.AudioUrl!!.toUri())
                                 .setMediaMetadata(
                                     MediaMetadata.Builder()
-                                        .setTitle(item.title)
-                                        .setArtist(item.creator)
-                                        .setArtworkUri(item.photoUrl.toUri())
+                                        .setTitle(item.EpisodeName)
+                                        .setArtist(item.Creator)
+                                        .setArtworkUri(item.PhotoUrl!!.toUri())
                                         .build()
                                 )
                                 .build()
 
-                            Toast.makeText(context, "Playing: ${item.title}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Playing: ${item.EpisodeName}", Toast.LENGTH_SHORT).show()
 
                             player.setMediaItem(mediaItem)
                             player.prepare()
@@ -230,18 +235,18 @@ fun PlayQueueScreen(navController: NavController) {
                             // PlaybackService will automatically restore position when STATE_READY
 
                             // Move this item to the top of the queue
-                            queueManager.moveToTop(item.id)
+                            queueManager.moveToTop(item.idValue?:"")
                             queueItems = queueManager.getQueue()
                             currentIndex = queueManager.getCurrentIndex()
 
                             // Navigate to PlayPod
-                            val encodedAudioUrl = Uri.encode(item.audioUrl)
-                            val encodedTitle = Uri.encode(item.title)
-                            val encodedPhotoUrl = Uri.encode(item.photoUrl)
-                            val encodedCreator = Uri.encode(item.creator)
-                            val encodedDescription = Uri.encode(item.description)
-                            val encodededtrans = Uri.encode(item.transcript)
-                            val encodedDate = Uri.encode(item.publishDate)
+                            val encodedAudioUrl = Uri.encode(item.AudioUrl)
+                            val encodedTitle = Uri.encode(item.EpisodeName)
+                            val encodedPhotoUrl = Uri.encode(item.PhotoUrl)
+                            val encodedCreator = Uri.encode(item.Creator)
+                            val encodedDescription = Uri.encode(item.Description)
+                            val encodededtrans = Uri.encode(item.TranscriptUrl)
+                            val encodedDate = Uri.encode(item.PublishDate)
                             navController.navigate(
                                 "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcripturl=$encodededtrans&publishDate=$encodedDate"
                             )
@@ -249,7 +254,7 @@ fun PlayQueueScreen(navController: NavController) {
                         },
                         onRemove = {
                             coroutineScope.launch(Dispatchers.IO) {
-                                queueManager.removeFromQueue(item.id)
+                                queueManager.removeFromQueue(item.idValue?:"")
                                 withContext(Dispatchers.Main) {
                                     queueItems = queueManager.getQueue()
                                     currentIndex = queueManager.getCurrentIndex()
@@ -273,7 +278,7 @@ fun PlayQueueScreen(navController: NavController) {
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 fun QueueItemRow(
-    item: QueueItem,
+    item: Episode,
     isCurrentlyPlaying: Boolean,
     playbackState: PlaybackState?,
     isActionsRevealed: Boolean,
@@ -299,7 +304,7 @@ fun QueueItemRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .pointerInput(item.id) {
+                .pointerInput(item.idValue) {
                     var totalDragX = 0f
                     detectHorizontalDragGestures(
                         onDragStart = { totalDragX = 0f },
@@ -359,7 +364,7 @@ fun QueueItemRow(
             }
 
             GlideImage(
-                model = item.photoUrl,
+                model = item.PhotoUrl,
                 contentDescription = "Episode artwork",
                 modifier = Modifier
                     .size(60.dp)
@@ -375,7 +380,7 @@ fun QueueItemRow(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = item.title,
+                    text = item.EpisodeName?:"",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isCurrentlyPlaying) FontWeight.Bold else FontWeight.Normal,
                     maxLines = 2,
@@ -383,7 +388,7 @@ fun QueueItemRow(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = item.creator,
+                    text = item.Creator?:"",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
