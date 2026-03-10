@@ -35,10 +35,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
-import com.pod_chive.android.api.homeItem
-import com.pod_chive.android.model.Episode
+import com.pod_chive.android.model.*
 import com.pod_chive.android.model.EpisodeNavType
 import com.pod_chive.android.model.PodcastShow
+import com.pod_chive.android.queue.PlayQueueManager
 import com.pod_chive.android.ui.components.Details
 import com.pod_chive.android.ui.components.Information
 import com.pod_chive.android.ui.theme.PodchiveTheme
@@ -129,46 +129,12 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
-                            composable(
-                                route = "playpod?audioUrl={audioUrl}&title={title}&photoUrl={photoUrl}&creator={creator}&desc={desc}&transcripturl={transcripturl}&publishDate={publishDate}",
-                                arguments = listOf(
-                                    navArgument("audioUrl") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("title") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("photoUrl") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("creator") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("desc") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("transcripturl") { type = NavType.StringType; nullable = true; defaultValue = null },
-                                    navArgument("publishDate") { type = NavType.StringType; nullable = true; defaultValue = null },
-
-                                )
-                            ) { backStackEntry ->
-                                val audioUrl = backStackEntry.arguments?.getString("audioUrl")
-                                val title = backStackEntry.arguments?.getString("title")
-                                val photoUrl = backStackEntry.arguments?.getString("photoUrl")
-                                val creator = backStackEntry.arguments?.getString("creator")
-                                val desc = backStackEntry.arguments?.getString("desc")
-                                val transcripturl = backStackEntry.arguments?.getString("transcripturl")
-                                val publishDate = backStackEntry.arguments?.getString("publishDate")
-                                Log.e("DATE!", backStackEntry.arguments?.getString("publishDate").toString())
-                                PlayPod(
-                                    navController = navController,
-                                    audioUrl = audioUrl,
-                                    title = title,
-                                    photoUrl = photoUrl,
-                                    creator = creator,
-                                    desc = desc,
-                                    transcripturl = transcripturl,
-                                    pubdate = publishDate
-                                )
-                            }
                             composable("details/{podcastTitle}") { backStackEntry ->
                                 val title = backStackEntry.arguments?.getString("podcastTitle") ?: ""
                                 ShowPodDetsFromMainServer(title, navController)
                             }
                             composable<PodcastShow>{ backStackEntry ->
-
                                 val Dets: PodcastShow = backStackEntry.toRoute()
-
                                 ShowPodDetsFromRSS(Dets, navController  )
                             }
                             composable("favorite_episodes"){
@@ -185,6 +151,22 @@ class MainActivity : ComponentActivity() {
                             ) { backStackEntry ->
                                 val info: Information = backStackEntry.toRoute()
                                 Details(info, navController)
+                            }
+                            composable("playpod"){
+                               var pqm = PlayQueueManager(context = this@MainActivity)
+                                var playingObj = pqm.getCurrentItem()
+                                if (playingObj != null) {
+                                    PlayPod(navController, playingObj)
+                                }
+
+
+                            }
+                            composable<playEpisode>(typeMap = mapOf(typeOf<Episode?>() to EpisodeNavType)
+                            ) {
+
+                                val temp = it.toRoute<playEpisode>()
+//                                val final = Episode(temp.Title, temp.description, temp.audioFilePath, temp.pubdate?:"", temp.transcript, temp.Creator, temp.PhotoUrl)
+                                PlayPod(navController, temp.EpisodeObj!!)
                             }
 //                            composable("debug_playback") {
 //                                PlaybackDebugScreen(navController)

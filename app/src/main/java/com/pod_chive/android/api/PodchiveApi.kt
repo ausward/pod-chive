@@ -69,7 +69,6 @@ data class homeItem(
         parcel.writeString(podcast_title)
         parcel.writeString(description)
         parcel.writeString(rss_url)
-//        parcel.writeString(html_summary_location)
         parcel.writeString(output_directory)
         parcel.writeString(cover_image_url)
     }
@@ -111,8 +110,6 @@ object RetrofitClient {
 
             val okHttpClient = OkHttpClient.Builder()
                 .cache(myCache)
-                // Optional: Add an interceptor here if the API doesn't
-                // provide Cache-Control headers (see below)
                 .build()
 
             val instance = Retrofit.Builder()

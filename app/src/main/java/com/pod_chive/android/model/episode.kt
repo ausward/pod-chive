@@ -3,7 +3,7 @@ package com.pod_chive.android.model
 import android.net.Uri
 import android.os.Bundle
 import androidx.navigation.NavType
-import androidx.savedstate.SavedState
+import com.pod_chive.android.ui.components.Information
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
@@ -30,12 +30,36 @@ val EpisodeNavType = object : NavType<Episode?>(isNullableAllowed = true) {
     }
 }
 
+
+@Serializable
+data class playEpisode(
+    var EpisodeObj: Episode? = null
+//    var Title: String? = null,
+//    var description: String? = null,
+//    var audioFilePath: String? = null,
+//    var pubdate: String? = null,
+//    var transcript: String? = null,
+//    var creator:String? = null,
+//    override var PhotoUrl: String? = null
+) {
+
+}
+
+
 @Serializable
 open class Episode {
+
+    @get:JvmName("getEpisodeAudio")
+    @set:JvmName("setEpisodeAudio")
     var AudioUrl: String? = null
     var EpisodeName: String? = null
+
+    @get:JvmName("getEpisodePub")
+    @set:JvmName("setEpisodePub")
     var PublishDate: String? = null
-    var PhotoUrl: String? = null
+
+
+    open var PhotoUrl: String? = null
 
     @get:JvmName("getEpisodeCreator")
     @set:JvmName("setEpisodeCreator")
@@ -50,6 +74,10 @@ open class Episode {
     var duration: Long? = null
 
 
+    var idValue: String? = null
+
+
+
     constructor(audioUrl: String, episodeName: String, publishDate: String, photoUrl: String) {
         this.EpisodeName = episodeName
         this.PublishDate = publishDate
@@ -57,8 +85,10 @@ open class Episode {
         this.AudioUrl = audioUrl
     }
 
-    constructor(title:String, description: String?, audioFilePath:String, pubDate: String,
-                transcript:String?, creator:String?, PhotoUrl:String?)
+    constructor(
+        title: String?, description: String?, audioFilePath: String?, pubDate: String,
+        transcript: String?, creator: String?, PhotoUrl: String?, id: String? = null
+    )
     {
         this.EpisodeName = title
         this.Description = description
@@ -67,6 +97,7 @@ open class Episode {
         this.TranscriptUrl = transcript
         this.Creator = creator
         this.PhotoUrl = PhotoUrl
+        this.idValue = id
     }
 
     /**
@@ -79,6 +110,20 @@ open class Episode {
         this.Creator = creator
         this.EpisodeName = title
     }
+
+    fun toPlayEpisode(): playEpisode {
+//        return playEpisode(this.EpisodeName, this.Description, this.AudioUrl, this.PublishDate, this.TranscriptUrl, this.Creator, this.PhotoUrl)
+        return playEpisode(this)
+    }
+
+    fun toInformation(): Information {
+        return Information(this.Description, this.TranscriptUrl, this.PublishDate, this.Creator, this.EpisodeName, this)
+    }
+
+    override fun toString():String{
+        return "Episode(audioUrl=$AudioUrl, episodeName=$EpisodeName, publishDate=$PublishDate, photoUrl=$PhotoUrl, creator=$Creator, description=${Description?.slice(0..4)?:"null"}, transcriptUrl=$TranscriptUrl, idValue=$idValue, duration=$duration, TranscriptData=${TranscriptData?.slice(0..4)?:"null"} )"
+    }
+    fun MasterToString():String{return this.toString()}
 
 
 

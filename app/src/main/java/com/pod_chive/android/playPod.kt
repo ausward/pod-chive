@@ -90,32 +90,21 @@ import com.pod_chive.android.model.Episode
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun PlayPod(
+
     navController: NavController,
-    audioUrl: String? = null,
-    title: String? = null,
-    photoUrl: String? = null,
-    creator: String? = null,
-    desc: String? = null,
-    transcripturl: String? = null,
-    pubdate: String? = null
+    episodeOBJ: Episode,
 ) {
-    // Default values if none provided (for testing or if navigating directly to the tab)
-    var finalAudioUrl  by remember { mutableStateOf(audioUrl ?: " ") }
-    var finalTitle by remember { mutableStateOf(title ?: " ") }
-    var finalPhotoUrl by remember { mutableStateOf(photoUrl ?: " ") }
-    var finalCreator  by remember { mutableStateOf(creator ?: " ") }
+
+    Log.e("PLAYPOD", episodeOBJ.toString())
     var controller by remember { mutableStateOf<MediaController?>(null) }
     val context = LocalContext.current
-    var finalDesc: String? by remember { mutableStateOf(desc ?: "") }
-    var pubdate: String? by remember { mutableStateOf(pubdate) }
-    Log.e("PLAYPOD", "desc: $finalDesc")
-    var transcript = if (transcripturl != null && transcripturl != "") {
-        if (transcripturl.contains("http*")) {
-            Log.e("PLAYPOD", "transcripturl: $transcripturl")
-            URL(transcripturl).readText()
+    var transcript = if (episodeOBJ.TranscriptUrl != null && episodeOBJ.TranscriptUrl != "") {
+        if (episodeOBJ.TranscriptUrl!!.contains("http*")) {
+            Log.e("PLAYPOD", "transcripturl: ${episodeOBJ.TranscriptUrl}")
+            episodeOBJ.TranscriptData = URL(episodeOBJ.TranscriptUrl).readText()
         }
         else {
-            transcripturl
+            episodeOBJ.TranscriptUrl
         }
     }
     else {
@@ -129,8 +118,6 @@ fun PlayPod(
     BackHandler(enabled = navController.previousBackStackEntry != null) {
         navController.navigateUp()
     }
-
-//    BackHandler() {navController.popBackStack() }
 
 
 
@@ -149,23 +136,14 @@ fun PlayPod(
                 if (queueItems.isNotEmpty()) {
                     val topItem = queueItems[0]
 
-                    // Update UI with queue item info
-                    finalAudioUrl = topItem.audioUrl
-                    finalTitle = topItem.title
-                    finalPhotoUrl = topItem.photoUrl
-                    finalCreator = topItem.creator
-                    finalDesc = topItem.description
-
-
-                    // Create and set media item
                     val mediaItem = MediaItem.Builder()
-                        .setMediaId(topItem.audioUrl)
-                        .setUri(topItem.audioUrl.toUri())
+                        .setMediaId(topItem.AudioUrl?:"")
+                        .setUri(topItem.AudioUrl!!.toUri())
                         .setMediaMetadata(
                             MediaMetadata.Builder()
-                                .setTitle(topItem.title)
-                                .setArtist(topItem.creator)
-                                .setArtworkUri(topItem.photoUrl.toUri())
+                                .setTitle(topItem.EpisodeName)
+                                .setArtist(topItem.Creator)
+                                .setArtworkUri(topItem.PhotoUrl!!.toUri())
                                 .build()
                         )
                         .build()
@@ -174,7 +152,7 @@ fun PlayPod(
                     pc.prepare()
                     pc.play()
 
-                    Log.d("PLAYPLAY", "Playing top queue item: ${topItem.title}")
+                    Log.d("PLAYPLAY", "Playing top queue item: ${topItem.EpisodeName}")
                 } else {
                     Log.d("PLAYPLAY", "Queue is empty, no item to play")
                 }
@@ -183,30 +161,15 @@ fun PlayPod(
                 val metadataTitle = pc.mediaMetadata.title?.toString()
                 val metadataCreator = pc.mediaMetadata.artist?.toString()
                 val metadataPhotoUrl = pc.mediaMetadata.artworkUri?.toString()
-
-                if (!metadataTitle.isNullOrBlank()) {
-                    finalTitle = metadataTitle
-                }
-                if (!metadataCreator.isNullOrBlank()) {
-                    finalCreator = metadataCreator
-                }
-                if (!metadataPhotoUrl.isNullOrBlank()) {
-                    finalPhotoUrl = metadataPhotoUrl
-                }
             }
         }, MoreExecutors.directExecutor())
     }
 
     Column {
         AudioPlayer(
-            audioUrl = finalAudioUrl,
-            title = finalTitle,
-            photoUrl = finalPhotoUrl,
-            creator = finalCreator,
+            episodeOBJ,
             navController = navController,
-            desc = finalDesc,
-            transcript = transcript,
-            pubdate = pubdate
+
         )
         // MiniPlayerControls()
     }
@@ -222,6 +185,8 @@ fun MiniPlayerControls() {
     var duration by remember { mutableLongStateOf(0L) }
     var isDragging by remember { mutableStateOf(false) }
     var sliderPosition by remember { mutableFloatStateOf(0f) }
+    val stateManager = PlaybackStateManager(context)
+
 
     LaunchedEffect(Unit) {
         val sessionToken =
@@ -242,6 +207,7 @@ fun MiniPlayerControls() {
 
                 override fun onEvents(player: Player, events: Player.Events) {
                     duration = player.duration.coerceAtLeast(0L)
+
                 }
             })
         }, MoreExecutors.directExecutor())
@@ -255,7 +221,7 @@ fun MiniPlayerControls() {
     }
 
     val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
-    if (isPlaying) {
+    if (progress > 0f && duration != currentPosition) {
         PodchiveTheme() {
             Row(
                 modifier = Modifier
@@ -329,15 +295,15 @@ fun MiniPlayerControls() {
 @OptIn(UnstableApi::class)
 @ExperimentalGlideComposeApi
 @Composable
-fun AudioPlayer(
-    audioUrl: String, // This acts as a fallback or "new play" target
-    creator: String,
-    title: String,
-    photoUrl: String,
+fun AudioPlayer(episodeOBJ: Episode,
+//    audioUrl: String, // This acts as a fallback or "new play" target
+//    creator: String,
+//    title: String,
+//    photoUrl: String,
     navController: NavController,
-    desc: String? = null,
-    transcript: String? = null,
-    pubdate: String? = null
+//    desc: String? = null,
+//    transcript: String? = null,
+//    pubdate: String? = null
 ) {
 //    Log.e("DATE" , pubdate.toString())
 
@@ -395,20 +361,20 @@ fun AudioPlayer(
 
             // Try to restore playback position from saved state
             val playbackStateManager = PlaybackStateManager(context)
-            Log.d("PLAYBACK", "AudioPlayer: Looking for saved state for URL: $audioUrl")
+            Log.d("PLAYBACK", "AudioPlayer: Looking for saved state for URL: ${episodeOBJ.AudioUrl}")
 
-            var savedState = playbackStateManager.getPlaybackState(audioUrl)
+            var savedState = playbackStateManager.getPlaybackState(episodeOBJ.AudioUrl!!)
 
             // If not found and URL contains encoded characters, try to find a match
-            if (savedState == null && audioUrl.contains("%")) {
+            if (savedState == null && episodeOBJ.AudioUrl!!.contains("%")) {
                 Log.d("PLAYBACK", "URL is encoded, searching for decoded match...")
                 val decodedUrl = try {
-                    Uri.decode(audioUrl)
+                    Uri.decode(episodeOBJ.AudioUrl)
                 } catch (e: Exception) {
                     Log.d("PLAYBACK", "Error decoding URL: ${e.message}")
-                    audioUrl
+                    episodeOBJ.AudioUrl
                 }
-                savedState = playbackStateManager.getPlaybackState(decodedUrl)
+                savedState = playbackStateManager.getPlaybackState(decodedUrl!!)
                 if (savedState != null) {
                     Log.d("PLAYBACK", "Found state using decoded URL")
                 }
@@ -419,9 +385,9 @@ fun AudioPlayer(
                 Log.d("PLAYBACK", "Searching all saved states for any match...")
                 val allStates = playbackStateManager.getAllPlaybackStates()
                 savedState = allStates.values.firstOrNull {
-                    it.audioUrl == audioUrl ||
-                    Uri.decode(it.audioUrl) == audioUrl ||
-                    Uri.decode(it.audioUrl) == Uri.decode(audioUrl)
+                    it.audioUrl == episodeOBJ.AudioUrl ||
+                    Uri.decode(it.audioUrl) == episodeOBJ.AudioUrl ||
+                    Uri.decode(it.audioUrl) == Uri.decode(episodeOBJ.AudioUrl)
                 }
                 if (savedState != null) {
                     Log.d("PLAYBACK", "Found matching state in all states")
@@ -438,7 +404,7 @@ fun AudioPlayer(
                     Log.d("PLAYBACK", "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms")
                 }
             } else {
-                Log.d("PLAYBACK", "✗ No saved state found for: $audioUrl")
+                Log.d("PLAYBACK", "✗ No saved state found for: ${episodeOBJ.AudioUrl}")
             }
 
             // Setup a listener to update the UI in real-time
@@ -524,7 +490,8 @@ fun AudioPlayer(
             }
             IconButton(
                 onClick =  {
-                    val temp = Information(desc, transcript, pubdate, creator, title)
+                    val temp = episodeOBJ.toInformation()
+//                    val temp = Information(episodeOBJ.desc, transcript, pubdate, creator, title)
                     navController.navigate(temp)
                 }
             ) { Icon(
@@ -538,7 +505,7 @@ fun AudioPlayer(
                 .shadow(20.dp, RoundedCornerShape(16.dp))
         ) {
             GlideImage(
-                model = photoUrl,
+                model = episodeOBJ.PhotoUrl,
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
@@ -551,7 +518,7 @@ fun AudioPlayer(
 
         // --- Info ---
         Text(
-            text = title,
+            text = episodeOBJ.EpisodeName?:"Hydration Error",
             color = Color.White,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
@@ -560,7 +527,7 @@ fun AudioPlayer(
             modifier = Modifier.padding(horizontal = 24.dp)
         )
         Text(
-            text = creator,
+            text = episodeOBJ.Creator?:"Unknown Show Name",
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 4.dp, start = 24.dp, end = 24.dp)

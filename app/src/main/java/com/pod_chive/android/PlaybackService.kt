@@ -81,6 +81,7 @@ class PlaybackService : MediaSessionService() {
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
+                    savePlaybackState(player)
                     // Request audio focus when starting playback
                     requestAudioFocus()
                 } else {
@@ -171,13 +172,13 @@ class PlaybackService : MediaSessionService() {
 
                     if (nextItem != null) {
                         val nextMediaItem = androidx.media3.common.MediaItem.Builder()
-                            .setMediaId(nextItem.audioUrl)
-                            .setUri(nextItem.audioUrl.toUri())
+                            .setMediaId(nextItem.AudioUrl?:"")
+                            .setUri(nextItem.AudioUrl?.toUri())
                             .setMediaMetadata(
                                 androidx.media3.common.MediaMetadata.Builder()
-                                    .setTitle(nextItem.title)
-                                    .setArtist(nextItem.creator)
-                                    .setArtworkUri(nextItem.photoUrl.toUri())
+                                    .setTitle(nextItem.EpisodeName)
+                                    .setArtist(nextItem.Creator)
+                                    .setArtworkUri(nextItem.PhotoUrl?.toUri())
                                     .build()
                             )
                             .build()
@@ -185,7 +186,7 @@ class PlaybackService : MediaSessionService() {
                         player.setMediaItem(nextMediaItem)
                         player.prepare()
                         player.play()
-                        android.util.Log.d("QUEUE", "Playing next: ${nextItem.title}")
+                        android.util.Log.d("QUEUE", "Playing next: ${nextItem.EpisodeName}")
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("QUEUE", "Error handling finished episode: ${e.message}")

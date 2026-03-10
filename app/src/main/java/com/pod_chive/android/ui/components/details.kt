@@ -31,11 +31,10 @@ import java.net.URL
 data class Information(
       var Description :String? = null,//= desc
       var TranscriptUrl :String? = null,//= transcript
-  var PublishDate :String? = null,//= pubdate?:""
-  var Creator :String? = null,//= creator
- var EpisodeName :String? = null,
-    var episode: Episode? = null
-
+      var PublishDate :String? = null,//= pubdate?:""
+      var Creator :String? = null,//= creator
+      var EpisodeName :String? = null,
+      var episode: Episode? = null
 )
 
 

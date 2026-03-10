@@ -4,21 +4,23 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
+import com.pod_chive.android.model.Episode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+//
+//@Serializable
+//data class QueueItem(
+//    val id: String, // Unique ID (could be timestamp + title hash)
+//    val title: String,
+//    val audioUrl: String,
+//    val photoUrl: String,
+//    val creator: String,
+//    val description: String? = null,
+//    val addedAt: Long = System.currentTimeMillis(),
+//    val transcript: String? = null,
+//    val publishDate: String? = null
+//): Episode(title, description, audioUrl, publishDate?:"", transcript, creator, photoUrl, id)
 
-@Serializable
-data class QueueItem(
-    val id: String, // Unique ID (could be timestamp + title hash)
-    val title: String,
-    val audioUrl: String,
-    val photoUrl: String,
-    val creator: String,
-    val description: String? = null,
-    val addedAt: Long = System.currentTimeMillis(),
-    val transcript: String? = null,
-    val publishDate: String? = null
-)
 
 class PlayQueueManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("podchive_queue", Context.MODE_PRIVATE)
@@ -26,10 +28,10 @@ class PlayQueueManager(context: Context) {
     private val QUEUE_KEY = "play_queue"
     private val CURRENT_INDEX_KEY = "current_index"
 
-    fun addToQueue(item: QueueItem) {
+    fun addToQueue(item: Episode) {
         val queue = getQueue().toMutableList()
         // Check if item already exists by ID or audioUrl (double check to prevent duplicates)
-        if (queue.none { it.id == item.id || it.audioUrl == item.audioUrl }) {
+        if (queue.none { it.idValue == item.idValue || it.AudioUrl == item.AudioUrl }) {
             queue.add(item)
             saveQueue(queue)
         }
@@ -38,7 +40,7 @@ class PlayQueueManager(context: Context) {
     fun removeFromQueue(itemId: String) {
         val queue = getQueue().toMutableList()
         val currentIndex = getCurrentIndex()
-        val removedIndex = queue.indexOfFirst { it.id == itemId }
+        val removedIndex = queue.indexOfFirst { it.idValue == itemId }
         if (removedIndex == -1) return
 
         queue.removeAt(removedIndex)
@@ -53,10 +55,10 @@ class PlayQueueManager(context: Context) {
         setCurrentIndex(newIndex.coerceAtLeast(0))
     }
 
-    fun getQueue(): List<QueueItem> {
+    fun getQueue(): List<Episode> {
         return try {
             val jsonStr = prefs.getString(QUEUE_KEY, "[]") ?: "[]"
-            json.decodeFromString<List<QueueItem>>(jsonStr)
+            json.decodeFromString<List<Episode>>(jsonStr)
         } catch (e: Exception) {
             Log.e("PlayQueueManager", "Error getting queue", e)
             emptyList()
@@ -88,7 +90,7 @@ class PlayQueueManager(context: Context) {
 
     fun moveToTop(itemId: String) {
         val queue = getQueue().toMutableList()
-        val itemIndex = queue.indexOfFirst { it.id == itemId }
+        val itemIndex = queue.indexOfFirst { it.idValue == itemId }
         if (itemIndex >= 0 && itemIndex > 0) {
             val item = queue.removeAt(itemIndex)
             queue.add(0, item)
@@ -105,7 +107,7 @@ class PlayQueueManager(context: Context) {
         prefs.edit { putInt(CURRENT_INDEX_KEY, index) }
     }
 
-    fun getNextItem(): QueueItem? {
+    fun getNextItem(): Episode? {
         val queue = getQueue()
         val currentIndex = getCurrentIndex()
         val nextIndex = currentIndex + 1
@@ -115,7 +117,7 @@ class PlayQueueManager(context: Context) {
         } else null
     }
 
-    fun getPreviousItem(): QueueItem? {
+    fun getPreviousItem(): Episode? {
         val queue = getQueue()
         val currentIndex = getCurrentIndex()
         val prevIndex = currentIndex - 1
@@ -125,7 +127,7 @@ class PlayQueueManager(context: Context) {
         } else null
     }
 
-    fun getCurrentItem(): QueueItem? {
+    fun getCurrentItem(): Episode? {
         val queue = getQueue()
         val currentIndex = getCurrentIndex()
         return if (currentIndex in queue.indices) queue[currentIndex] else null
@@ -151,10 +153,10 @@ class PlayQueueManager(context: Context) {
         val queue = getQueue().toMutableList()
         val currentIndex = getCurrentIndex()
         val removedBeforeOrAtCurrent = queue.withIndex()
-            .filter { it.value.audioUrl == audioUrl && it.index <= currentIndex }
+            .filter { it.value.AudioUrl == audioUrl && it.index <= currentIndex }
             .size
 
-        queue.removeAll { it.audioUrl == audioUrl }
+        queue.removeAll { it.AudioUrl == audioUrl }
         saveQueue(queue)
 
         val newIndex = when {
@@ -165,7 +167,7 @@ class PlayQueueManager(context: Context) {
         setCurrentIndex(newIndex)
     }
 
-    private fun saveQueue(queue: List<QueueItem>) {
+    private fun saveQueue(queue: List<Episode>) {
         try {
             val jsonString = json.encodeToString(queue)
             prefs.edit { putString(QUEUE_KEY, jsonString) }

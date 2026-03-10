@@ -186,7 +186,7 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                                 podcastData.episodeDCS.map { episode ->
                                     episode.photo = "https://pod-chive.com/${favorite.feedLink}/cover.webp"
                                     episode.creator = favorite.title
-                                    episode.audioFilePath = "https://pod-chive.com/${episode.audioFilePath}"
+                                    episode.audioFilePath = "${episode.audioFilePath}"
                                     EpisodeWithShowData(
                                         episodeDC = episode,
                                         podcastDirectory = favorite.feedLink,

@@ -386,6 +386,7 @@ fun ShowPodDetsFromRSS(homeitems: PodcastShow, navController: NavController) {
             // --- Episode List ---
             // Since we aren't in a LazyColumn, we use a simple forEach
             epData?.forEach { episode ->
+                episode.description
                 EpisodeRow(
                     episode,
                     null,
