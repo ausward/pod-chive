@@ -37,6 +37,7 @@ import com.pod_chive.android.model.Episode
 import com.pod_chive.android.model.EpisodeNavType
 import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.model.playEpisode
+import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayQueueManager
 import com.pod_chive.android.ui.components.Details
 import com.pod_chive.android.ui.components.Information
@@ -153,9 +154,28 @@ class MainActivity : ComponentActivity() {
                             }
                             composable("playpod"){
                                val pqm = PlayQueueManager(context = this@MainActivity)
+                                val pstm = PlaybackStateManager(context = this@MainActivity)
                                 val playingObj = pqm.getCurrentItem()
                                 if (playingObj != null) {
-                                    PlayPod(navController, playingObj)
+//                                    navController.navigate(playingObj.toPlayEpisode())
+                                    PlayPod(false,navController, playingObj)
+                                } else if (playingObj == null) {
+                                    val temp = pstm.getPlayingEpisode()
+                                    val tempOBj = Episode(
+                                        temp?.title,
+                                        "",
+                                        temp?.audioUrl,
+                                        temp?.publishDate ?: "",
+                                        "",
+                                        temp?.creator,
+                                        temp?.photoUrl
+                                    )
+                                    PlayPod(false,navController, tempOBj)
+
+                                }else{
+                                    val emptyItem = Episode("Nothing In Queue","Please add an episode to the queue or find something to play", "https://pod-chive.com/nothingtoplay.mp3", "",
+                                        "Hey, you, you an't got nothing in the queue, there's nothing for me to play, please find something to play. I am so bored playing nothing ", "Pod-chive", "https://pod-chive.com/nothingtoplay.webp")
+                                    PlayPod(false,navController, emptyItem)
                                 }
 
 
@@ -165,7 +185,7 @@ class MainActivity : ComponentActivity() {
 
                                 val temp = it.toRoute<playEpisode>()
 //                                val final = Episode(temp.Title, temp.description, temp.audioFilePath, temp.pubdate?:"", temp.transcript, temp.Creator, temp.PhotoUrl)
-                                PlayPod(navController, temp.EpisodeObj!!)
+                                PlayPod(true,navController, temp.EpisodeObj!!)
                             }
 //                            composable("debug_playback") {
 //                                PlaybackDebugScreen(navController)

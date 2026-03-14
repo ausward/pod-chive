@@ -70,4 +70,7 @@ dependencies {
     implementation(libs.compose)
     implementation(libs.androidx.navigation.common)
     implementation(libs.rssparser)
+
+
+    implementation(libs.glide)
 }

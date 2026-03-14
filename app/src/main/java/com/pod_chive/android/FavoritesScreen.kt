@@ -1,5 +1,6 @@
 package com.pod_chive.android
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -163,6 +164,7 @@ fun FavoritePodcastItem(
                     // It's an RSS feed URL - navigate using homeItem route
                     // We need to pass a homeItem object with the RSS URL
                     try {
+                        Log.e("FavoritesScreen", "Navigating to RSS feed: ${favorite.feedLink}")
                         navController.navigate(PodcastShow(
                                  favorite.title,
                                 favorite.showDescription?: "",

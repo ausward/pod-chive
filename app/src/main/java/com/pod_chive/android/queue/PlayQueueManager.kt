@@ -51,8 +51,12 @@ class PlayQueueManager(context: Context) {
     }
 
     fun clearQueue() {
+        val temp = getCurrentItem()
         saveQueue(emptyList())
-        setCurrentIndex(0)
+        if (temp != null) {
+            addToQueue(temp)
+        } else
+            setCurrentIndex(0)
     }
 
     fun moveItem(fromIndex: Int, toIndex: Int) {

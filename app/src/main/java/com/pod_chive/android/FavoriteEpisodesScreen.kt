@@ -88,10 +88,17 @@ private class FavoriteEpisodesPageCache(context: Context) {
     }
 
     fun save(favoritesSignature: String, episodes: List<EpisodeWithShowData>) {
+        lateinit var episodesToSave: List<EpisodeWithShowData>
+        if (episodes.size > 50){
+            episodesToSave = episodes.subList(0, 50)
+        } else {
+            episodesToSave = episodes
+        }
+
         val payload = FavoriteEpisodesCachePayload(
             favoritesSignature = favoritesSignature,
             cachedAtMs = System.currentTimeMillis(),
-            episodes = episodes
+            episodes = episodesToSave
         )
         prefs.edit { putString("payload", json.encodeToString(payload)) }
     }
@@ -143,6 +150,11 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                 isLoading = false
                 return@LaunchedEffect
             }
+
+            for (favorite in favorites) {
+                Log.d("FavoriteEpisodes", "Favorite: ${favorite.toString()}")
+            }
+
 
             val favoritesSignature = buildFavoritesSignature(favorites)
             val cachedEpisodes = withContext(Dispatchers.IO) {

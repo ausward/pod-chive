@@ -13,12 +13,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -28,10 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ViewComfyAlt
 import androidx.compose.material.icons.filled.ViewDay
@@ -41,7 +36,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,11 +53,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
 import androidx.core.text.HtmlCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -80,15 +74,14 @@ import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.model.Episode
+import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayBackProgressVis
 import com.pod_chive.android.ui.components.LoadingIndicator
+import com.pod_chive.android.ui.components.ShowPodPage
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.core.net.toUri
 
 
 @Composable
@@ -233,6 +226,7 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
     var podcastData by remember { mutableStateOf<PodcastDetailResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isFavorite by remember { mutableStateOf(false) }
+    var showShowDesc by remember { mutableStateOf(false) }
 
 
 
@@ -262,122 +256,28 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
         }
     }
 
+
+    if (showShowDesc) {                    AlertDialog(
+        onDismissRequest = { showShowDesc = false },
+        confirmButton = {
+            TextButton(onClick = { showShowDesc = false }) {
+                Text("Close")
+            }
+        },
+        title = {
+            Text(text = podcastData?.podcastTitle ?: "", style = MaterialTheme.typography.titleLarge)
+        },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                HtmlText(html = podcastData?.podcastDescription ?: "No description available.")
+            }
+        }
+    )}
     if (isLoading) {
         LoadingIndicator()
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-        ) {
-            // --- Shinking Header ---
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                GlideImage(
-                    model = "https://pod-chive.com/$directory/cover.webp",
-                    contentDescription = "Cover",
-                    modifier = Modifier
-                        .size(currentImageSize) // Dynamic size applied here
-                        .clip(MaterialTheme.shapes.medium),
-                    loading = placeholder(R.mipmap.shrug),
-                    failure = placeholder(R.mipmap.shrug)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = podcastData?.podcastTitle ?: " ",
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    textAlign = TextAlign.Center
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // --- Episode List ---
-            // Since we aren't in a LazyColumn, we use a simple forEach
-            podcastData?.episodeDCS?.forEach { episode ->
-                EpisodeRow(
-                    episode,
-                    directory,
-//                    podcastData?.podcastTitle,
-                    navController,
-                    PlaybackState.STOPPED
-                )
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.tertiary,
-                    thickness = 1.dp,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-        }
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = if (showStickyTitle) MaterialTheme.colorScheme.surface else Color.Transparent,
-            tonalElevation = if (showStickyTitle) 4.dp else 0.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .statusBarsPadding() // Handles the notch/status bar area
-                    .height(64.dp)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                if (showStickyTitle) {
-                    Text(
-                        text = podcastData?.podcastTitle ?: "",
-                        style = MaterialTheme.typography.titleLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .weight(1f)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-
-                IconButton(onClick = {
-                    val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
-                    GlobalScope.launch(Dispatchers.IO) {
-                        if (isFavorite) {
-                            val favorite = repository.getFavoriteByFeedLink(directory)
-                            if (favorite != null) {
-                                repository.deleteFavorite(favorite)
-                            }
-                        } else {
-                            repository.insertFavorite(
-                                com.pod_chive.android.database.FavoritePodcast(
-                                    feedLink = directory,
-                                    imageLocation = "https://pod-chive.com/$directory/cover.webp",
-                                    description = "",
-                                    title = podcastData?.podcastTitle ?: ""
-                                )
-                            )
-                        }
-                        isFavorite = !isFavorite
-                    }
-                }) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
+   } else {
+       val podcastShow = PodcastShow(podcastData!!.podcastTitle, podcastData!!.podcastDescription, "https://pod-chive.com/$directory/out.json", directory, "https://pod-chive.com/$directory/cover.webp" )
+        ShowPodPage(podcastShow,podcastData!!.episodeDCS, navController = navController, isFavorite)
     }
 }
 
@@ -471,17 +371,6 @@ fun EpisodeRow(
         Log.d("HOME470", episodeDC.toString())
 
 
-//        val queueItem = com.pod_chive.android.queue.QueueItem(
-//            id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-//            title = episodeDC.title ?: "",
-//            audioUrl = audioUrl,
-//            photoUrl = photoUrl,
-//            creator = episodeDC.creator ?: "Unknown",
-//            description = episodeDC.description,
-//            transcript = episodeDC.transcript,
-//        )
-
-
         queueManager.addToQueue(episodeDC)
         Log.d("QUEUE", "Added to queue: ${episodeDC.title}")
         android.widget.Toast.makeText(context, "Added to queue", android.widget.Toast.LENGTH_SHORT)
@@ -518,30 +407,12 @@ fun EpisodeRow(
                 episodeDC.idValue = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl)
                 episodeDC.AudioUrl = audioUrl
                 episodeDC.PhotoUrl = photoUrl
-//                val queueItem = com.pod_chive.android.queue.QueueItem(
-//                    id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-//                    title = episodeDC.title ?: "",
-//                    audioUrl = audioUrl,
-//                    photoUrl = photoUrl,
-//                    creator = episodeDC.creator ?: "Unknown",
-//                    description = episodeDC.description,
-//                    transcript = episodeDC.transcript,
-//                    publishDate = episodeDC.pubDate
-//                )
+
                 queueManager.addToQueue(episodeDC)
                 queueManager.moveToTop(com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl))
                 Log.d("QUEUE", "Added and moved to top: ${episodeDC.EpisodeName}")
 
-//                val encodedAudioUrl = Uri.encode(audioUrl)
-//                val encodedTitle = Uri.encode(episodeDC.title ?: "")
-//                val encodedPhotoUrl = Uri.encode(photoUrl)
-//                val encodedCreator = Uri.encode(episodeDC.creator ?: "")
-//                val encodedDescription = Uri.encode(episodeDC.description ?: "")
-//                val encodedTranscript = Uri.encode(episodeDC.transcript ?: "")
-//                val encodedDate = Uri.encode(episodeDC.pubDate ?: "")
-//                navController.navigate(
-//                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcript=$encodedTranscript&publishDate=$encodedDate"
-//                )\
+
 
                 Log.d("HOME546", episodeDC.MasterToString())
 //                navController.navigate(episodeDC.toPlayEpisode())

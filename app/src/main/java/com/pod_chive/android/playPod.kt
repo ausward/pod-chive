@@ -90,6 +90,8 @@ import com.pod_chive.android.model.Episode
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun PlayPod(
+    NEW_POD: Boolean = false,
+
 
     navController: NavController,
     episodeOBJ: Episode,
@@ -98,7 +100,7 @@ fun PlayPod(
     Log.e("PLAYPOD", episodeOBJ.toString())
     var controller by remember { mutableStateOf<MediaController?>(null) }
     val context = LocalContext.current
-    var transcript = if (episodeOBJ.TranscriptUrl != null && episodeOBJ.TranscriptUrl != "") {
+    val transcript = if (episodeOBJ.TranscriptUrl != null && episodeOBJ.TranscriptUrl != "") {
         if (episodeOBJ.TranscriptUrl!!.contains("http*")) {
             Log.e("PLAYPOD", "transcripturl: ${episodeOBJ.TranscriptUrl}")
             episodeOBJ.TranscriptData = URL(episodeOBJ.TranscriptUrl).readText()
@@ -110,10 +112,6 @@ fun PlayPod(
     else {
         ""
     }
-
-
-
-
 
     BackHandler(enabled = navController.previousBackStackEntry != null) {
         navController.navigateUp()
@@ -156,17 +154,19 @@ fun PlayPod(
                 } else {
                     Log.d("PLAYPLAY", "Queue is empty, no item to play")
                 }
-            } else {
-                // Pull the metadata that was set in EpisodeRow
-                val metadataTitle = pc.mediaMetadata.title?.toString()
-                val metadataCreator = pc.mediaMetadata.artist?.toString()
-                val metadataPhotoUrl = pc.mediaMetadata.artworkUri?.toString()
             }
+            //else {
+                // Pull the metadata that was set in EpisodeRow
+//                val metadataTitle = pc.mediaMetadata.title?.toString()
+//                val metadataCreator = pc.mediaMetadata.artist?.toString()
+//                val metadataPhotoUrl = pc.mediaMetadata.artworkUri?.toString()
+//            }
         }, MoreExecutors.directExecutor())
     }
 
     Column {
         AudioPlayer(
+            NEW_POD,
             episodeOBJ,
             navController = navController,
 
@@ -295,7 +295,10 @@ fun MiniPlayerControls() {
 @OptIn(UnstableApi::class)
 @ExperimentalGlideComposeApi
 @Composable
-fun AudioPlayer(episodeOBJ: Episode,
+fun AudioPlayer(
+    New_POD: Boolean = false,
+
+    episodeOBJ: Episode,
 //    audioUrl: String, // This acts as a fallback or "new play" target
 //    creator: String,
 //    title: String,
@@ -359,9 +362,14 @@ fun AudioPlayer(episodeOBJ: Episode,
             duration = controller.duration.coerceAtLeast(0L)
             playbackSpeed = controller.playbackParameters.speed
 
+
+        if (New_POD) {
             // Try to restore playback position from saved state
             val playbackStateManager = PlaybackStateManager(context)
-            Log.d("PLAYBACK", "AudioPlayer: Looking for saved state for URL: ${episodeOBJ.AudioUrl}")
+            Log.d(
+                "PLAYBACK",
+                "AudioPlayer: Looking for saved state for URL: ${episodeOBJ.AudioUrl}"
+            )
 
             var savedState = playbackStateManager.getPlaybackState(episodeOBJ.AudioUrl!!)
 
@@ -386,8 +394,8 @@ fun AudioPlayer(episodeOBJ: Episode,
                 val allStates = playbackStateManager.getAllPlaybackStates()
                 savedState = allStates.values.firstOrNull {
                     it.audioUrl == episodeOBJ.AudioUrl ||
-                    Uri.decode(it.audioUrl) == episodeOBJ.AudioUrl ||
-                    Uri.decode(it.audioUrl) == Uri.decode(episodeOBJ.AudioUrl)
+                            Uri.decode(it.audioUrl) == episodeOBJ.AudioUrl ||
+                            Uri.decode(it.audioUrl) == Uri.decode(episodeOBJ.AudioUrl)
                 }
                 if (savedState != null) {
                     Log.d("PLAYBACK", "Found matching state in all states")
@@ -395,17 +403,33 @@ fun AudioPlayer(episodeOBJ: Episode,
             }
 
             if (savedState != null) {
-                Log.d("PLAYBACK", "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms")
+                Log.d(
+                    "PLAYBACK",
+                    "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms"
+                )
                 // Only restore if the saved position is reasonable (not at the very end)
                 if (savedState.currentPosition > 0 && savedState.currentPosition < savedState.duration * 0.95) {
-                    controller.seekTo(savedState.currentPosition)
-                    Log.d("PLAYBACK", "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms")
+                    Log.e("STATECONTROLLER", controller.currentMediaItem?.mediaId ?: "")
+                    Log.e("STATESAVED", savedState.audioUrl ?: "")
+
+//                    if (savedState.currentPosition > controller.currentPosition) {
+                        controller.seekTo(savedState.currentPosition)
+                        Log.d(
+                            "PLAYBACK",
+                            "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms"
+                        )
+//                    }
                 } else {
-                    Log.d("PLAYBACK", "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms")
+                    Log.d(
+                        "PLAYBACK",
+                        "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms"
+                    )
                 }
             } else {
                 Log.d("PLAYBACK", "✗ No saved state found for: ${episodeOBJ.AudioUrl}")
             }
+        }
+
 
             // Setup a listener to update the UI in real-time
             controller.addListener(object : Player.Listener {
