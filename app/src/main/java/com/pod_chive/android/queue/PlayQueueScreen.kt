@@ -129,7 +129,6 @@ fun PlayQueueScreen(navController: NavController) {
 
     ) { padding ->
         Column() {
-            Text(text = playbackStateManager.getAllPlaybackStates().toString())
         }
         if (queueItems.isEmpty()) {
             Box(

@@ -300,13 +300,15 @@ fun EpisodeRow(
 
     var audioUrl = ""
     var photoUrl = ""
-    if (directory != null) {
+    if (directory != "" && directory != null) {
         audioUrl = "https://pod-chive.com/${episodeDC.audioFilePath}"
         photoUrl = "https://pod-chive.com/$directory/cover.webp"
     } else {
         audioUrl = episodeDC.audioFilePath
-        photoUrl = episodeDC.photo?:""
+        photoUrl = episodeDC.PhotoUrl?:episodeDC.photo?:"https://pod-chive.com/cover.webp"
     }
+    Log.e("PHOTOURL", photoUrl)
+    Log.e("AUDIOURL", audioUrl)
 
 //    val context = LocalContext.current
 //    val stateManager = remember { PlaybackStateManager(context) }
@@ -444,20 +446,28 @@ fun EpisodeRow(
                         .clip(MaterialTheme.shapes.medium),
                     loading = placeholder(R.mipmap.shrug),
                     failure = placeholder(R.mipmap.shrug)
-                    )
+                )
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                if (showPodcastImage && episodeDC.creator != null) {
+                    Text(
+                        text = episodeDC.creator ?: "",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 Text(
                     text = episodeDC.title ?: "",
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                val displayDate = episodeDC.pubDate?.let { 
-                    if (it.length >= 16) it.substring(0, 16) else it 
+
+                val displayDate = episodeDC.pubDate?.let {
+                    if (it.length >= 16) it.substring(0, 16) else it
                 } ?: ""
                 Text(
                     text = displayDate,
@@ -475,7 +485,7 @@ fun EpisodeRow(
                         maxLines = 2,
                     )
                 }
-                
+
                 if (state.duration > 0) {
 //                     var progressPercent = 100f * state.currentPosition.toFloat() / state.duration.toFloat()
 //                    (state.currentPosition.toFloat() / state.duration.toFloat() * 100f)
@@ -492,53 +502,64 @@ fun EpisodeRow(
             }
 
             Spacer(modifier = Modifier.width(8.dp))
+            Column() {
 
-            // Add to Queue button
-            IconButton(
-                onClick = {
 
-                    addToQueue(audioUrl, photoUrl)
-                },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                    contentDescription = "Add to queue",
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+                // Play button
+                IconButton(
+                    enabled = controller != null,
+                    onClick = {
+                        var audioUrl = ""
+                        var photoUrl = ""
+                        if (directory != null) {
+                            audioUrl = "${episodeDC.audioFilePath}"
+                            photoUrl = "https://pod-chive.com/$directory/cover.webp"
+                        } else {
+                            audioUrl = episodeDC.audioFilePath ?: return@IconButton
+                            photoUrl = episodeDC.photo ?: return@IconButton
+                        }
 
-            // Play button
-            IconButton(
-                enabled = controller != null,
-                onClick = {
-                    var audioUrl = ""
-                    var photoUrl = ""
-                    if (directory != null) {
-                        audioUrl = "${episodeDC.audioFilePath}"
-                        photoUrl = "https://pod-chive.com/$directory/cover.webp"
-                    } else {
-                        audioUrl = episodeDC.audioFilePath ?: return@IconButton
-                        photoUrl = episodeDC.photo ?: return@IconButton
-                    }
-                    val Temp = Episode(audioUrl, episodeDC.title ?: "", episodeDC.pubDate ?: "", photoUrl)
-                    Temp.TranscriptUrl = episodeDC.transcript
-                    Temp.Creator = episodeDC.creator
-                    Temp.Description = episodeDC.description
-                    playEpisode(Temp)
-                },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = "Play episode",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
+                        val Temp =
+                            Episode(
+                                audioUrl,
+                                episodeDC.title ?: "",
+                                episodeDC.pubDate ?: "",
+                                photoUrl
+                            )
+
+                        Temp.TranscriptUrl = episodeDC.transcript
+                        Temp.Creator = episodeDC.creator
+                        Temp.Description = episodeDC.description
+                        Log.e("episodeRowPlay", Temp.toString())
+                        playEpisode(Temp)
+                    },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = "Play episode",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                // Add to Queue button
+                IconButton(
+                    onClick = {
+
+                        addToQueue(audioUrl, photoUrl)
+                    },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                        contentDescription = "Add to queue",
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(35.dp)
+                    )
+                }
+
             }
         }
-
     }
 }
 

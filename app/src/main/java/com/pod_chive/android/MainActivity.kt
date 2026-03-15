@@ -27,6 +27,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -46,10 +49,15 @@ import kotlin.reflect.typeOf
 
 
 class MainActivity : ComponentActivity() {
+
+
     @OptIn(ExperimentalGlideComposeApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+
         setContent {
             PodchiveTheme {
                 // 1. Initialize the NavController here
@@ -60,12 +68,12 @@ class MainActivity : ComponentActivity() {
                 val items = listOf("Home", "Search", "Play", "Favorites")
                 val routes = listOf("home", "search", "playpod", "favorites") // Match these to your NavHost routes
                 val icons = listOf(Icons.Filled.Home, Icons.Filled.Search, Icons.Filled.PlayArrow, Icons.Filled.Favorite)
-
+                val BackEntryAsState = navController.currentBackStackEntryAsState()
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     bottomBar = {
                         Column {
-                            if (currentRoute?.startsWith("playpod") != true) {
+                            if (currentRoute?.startsWith("playpod") != true  xor (BackEntryAsState.value?.destination?.hasRoute<playEpisode>() == true)) {
                                 Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 4.dp) {
                                     MiniPlayerControls()
                                 }

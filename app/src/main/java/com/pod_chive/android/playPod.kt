@@ -48,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -84,6 +85,8 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import androidx.core.net.toUri
 import com.pod_chive.android.model.Episode
+import com.pod_chive.android.ui.components.AnimatedChive
+
 
 @ExperimentalGlideComposeApi
 @OptIn(ExperimentalGlideComposeApi::class)
@@ -155,12 +158,6 @@ fun PlayPod(
                     Log.d("PLAYPLAY", "Queue is empty, no item to play")
                 }
             }
-            //else {
-                // Pull the metadata that was set in EpisodeRow
-//                val metadataTitle = pc.mediaMetadata.title?.toString()
-//                val metadataCreator = pc.mediaMetadata.artist?.toString()
-//                val metadataPhotoUrl = pc.mediaMetadata.artworkUri?.toString()
-//            }
         }, MoreExecutors.directExecutor())
     }
 
@@ -319,6 +316,7 @@ fun AudioPlayer(
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
+    var isloading by remember { mutableStateOf(true) }
 
     // Slider State
     var isDragging by remember { mutableStateOf(false) }
@@ -356,7 +354,7 @@ fun AudioPlayer(
         controllerFuture.addListener({
             val controller = controllerFuture.get()
             mediaController = controller
-
+            isloading = controller.isLoading
             // Sync initial state
             isPlaying = controller.isPlaying
             duration = controller.duration.coerceAtLeast(0L)
@@ -614,12 +612,16 @@ fun AudioPlayer(
                 modifier = Modifier.size(64.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painter = painterResource(if (isPlaying) R.drawable.outline_pause_24 else R.drawable.play_arrow_24px),
-                        contentDescription = null,
-                        modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    if (mediaController?.isLoading?:false) {
+                        AnimatedChive(isLoading = mediaController?.isLoading?:true)
+                    } else {
+                        Icon(
+                            painter = painterResource(if (isPlaying) R.drawable.outline_pause_24 else R.drawable.play_arrow_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
             }
 
