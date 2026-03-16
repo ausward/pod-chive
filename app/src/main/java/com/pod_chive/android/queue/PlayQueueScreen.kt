@@ -67,12 +67,16 @@ fun PlayQueueScreen(navController: NavController) {
     var revealedRowId by remember { mutableStateOf<String?>(null) }
 
     // Connect to MediaController
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         controllerFuture.addListener({
             controller = controllerFuture.get()
         }, MoreExecutors.directExecutor())
+
+        onDispose {
+            controller?.release()
+        }
     }
 
     // Refresh queue and playback states periodically

@@ -123,43 +123,52 @@ fun PlayPod(
 
 
 
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
 
         controllerFuture.addListener({
-            val pc = controllerFuture.get()
-            controller = pc
-            if (controller?.isPlaying != true) {
-            // If no audio URL was provided, load and play the top item from the queue
-//            if (audioUrl.isNullOrBlank() || audioUrl == " ") {
-                val queueManager = PlayQueueManager(context)
-                val queueItems = queueManager.getQueue()
-                if (queueItems.isNotEmpty()) {
-                    val topItem = queueItems[0]
+            try {
+                val pc = controllerFuture.get()
+                controller = pc
+                if (controller?.isPlaying != true) {
+                // If no audio URL was provided, load and play the top item from the queue
+    //            if (audioUrl.isNullOrBlank() || audioUrl == " ") {
+                    val queueManager = PlayQueueManager(context)
+                    val queueItems = queueManager.getQueue()
+                    if (queueItems.isNotEmpty()) {
+                        val topItem = queueItems[0]
 
-                    val mediaItem = MediaItem.Builder()
-                        .setMediaId(topItem.AudioUrl?:"")
-                        .setUri(topItem.AudioUrl!!.toUri())
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setTitle(topItem.EpisodeName)
-                                .setArtist(topItem.Creator)
-                                .setArtworkUri(topItem.PhotoUrl!!.toUri())
-                                .build()
-                        )
-                        .build()
+                        val mediaItem = MediaItem.Builder()
+                            .setMediaId(topItem.AudioUrl?:"")
+                            .setUri(topItem.AudioUrl!!.toUri())
+                            .setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setTitle(topItem.EpisodeName)
+                                    .setArtist(topItem.Creator)
+                                    .setArtworkUri(topItem.PhotoUrl!!.toUri())
+                                    .build()
+                            )
+                            .build()
 
-                    pc.setMediaItem(mediaItem)
-                    pc.prepare()
-                    pc.play()
+                        pc.setMediaItem(mediaItem)
+                        pc.prepare()
+                        pc.play()
 
-                    Log.d("PLAYPLAY", "Playing top queue item: ${topItem.EpisodeName}")
-                } else {
-                    Log.d("PLAYPLAY", "Queue is empty, no item to play")
+                        Log.d("PLAYPLAY", "Playing top queue item: ${topItem.EpisodeName}")
+                    } else {
+                        Log.d("PLAYPLAY", "Queue is empty, no item to play")
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e("PlayPod", "Error getting MediaController", e)
             }
         }, MoreExecutors.directExecutor())
+
+        onDispose {
+            MediaController.releaseFuture(controllerFuture)
+            controller = null
+        }
     }
 
     Column {
@@ -186,29 +195,38 @@ fun MiniPlayerControls() {
     val stateManager = PlaybackStateManager(context)
 
 
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
         val sessionToken =
             SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
 
         controllerFuture.addListener({
-            val controller = controllerFuture.get()
-            mediaController = controller
+            try {
+                val controller = controllerFuture.get()
+                mediaController = controller
 
-            isPlaying = controller.isPlaying
-            duration = controller.duration.coerceAtLeast(0L)
+                isPlaying = controller.isPlaying
+                duration = controller.duration.coerceAtLeast(0L)
 
-            controller.addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(playing: Boolean) {
-                    isPlaying = playing
-                }
+                controller.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(playing: Boolean) {
+                        isPlaying = playing
+                    }
 
-                override fun onEvents(player: Player, events: Player.Events) {
-                    duration = player.duration.coerceAtLeast(0L)
+                    override fun onEvents(player: Player, events: Player.Events) {
+                        duration = player.duration.coerceAtLeast(0L)
 
-                }
-            })
+                    }
+                })
+            } catch (e: Exception) {
+                Log.e("MiniPlayerControls", "Error getting MediaController", e)
+            }
         }, MoreExecutors.directExecutor())
+
+        onDispose {
+            MediaController.releaseFuture(controllerFuture)
+            mediaController = null
+        }
     }
 
     LaunchedEffect(isPlaying) {
@@ -325,6 +343,105 @@ fun AudioPlayer(
 
     // Save state when leaving this screen
     DisposableEffect(Unit) {
+        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+
+        controllerFuture.addListener({
+            try {
+                val controller = controllerFuture.get()
+                mediaController = controller
+                isloading = controller.isLoading
+                // Sync initial state
+                isPlaying = controller.isPlaying
+                duration = controller.duration.coerceAtLeast(0L)
+                playbackSpeed = controller.playbackParameters.speed
+
+
+                if (New_POD) {
+                    // Try to restore playback position from saved state
+                    val playbackStateManager = PlaybackStateManager(context)
+                    Log.d(
+                        "PLAYBACK",
+                        "AudioPlayer: Looking for saved state for URL: ${episodeOBJ.AudioUrl}"
+                    )
+
+                    var savedState = playbackStateManager.getPlaybackState(episodeOBJ.AudioUrl!!)
+
+                    // If not found and URL contains encoded characters, try to find a match
+                    if (savedState == null && episodeOBJ.AudioUrl!!.contains("%")) {
+                        Log.d("PLAYBACK", "URL is encoded, searching for decoded match...")
+                        val decodedUrl = try {
+                            Uri.decode(episodeOBJ.AudioUrl)
+                        } catch (e: Exception) {
+                            Log.d("PLAYBACK", "Error decoding URL: ${e.message}")
+                            episodeOBJ.AudioUrl
+                        }
+                        savedState = playbackStateManager.getPlaybackState(decodedUrl!!)
+                        if (savedState != null) {
+                            Log.d("PLAYBACK", "Found state using decoded URL")
+                        }
+                    }
+
+                    // If still not found, search all states for matching audio URL
+                    if (savedState == null) {
+                        Log.d("PLAYBACK", "Searching all saved states for any match...")
+                        val allStates = playbackStateManager.getAllPlaybackStates()
+                        savedState = allStates.values.firstOrNull {
+                            it.audioUrl == episodeOBJ.AudioUrl ||
+                                    Uri.decode(it.audioUrl) == episodeOBJ.AudioUrl ||
+                                    Uri.decode(it.audioUrl) == Uri.decode(episodeOBJ.AudioUrl)
+                        }
+                        if (savedState != null) {
+                            Log.d("PLAYBACK", "Found matching state in all states")
+                        }
+                    }
+
+                    if (savedState != null) {
+                        Log.d(
+                            "PLAYBACK",
+                            "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms"
+                        )
+                        // Only restore if the saved position is reasonable (not at the very end)
+                        if (savedState.currentPosition > 0 && savedState.currentPosition < savedState.duration * 0.95) {
+                            Log.e("STATECONTROLLER", controller.currentMediaItem?.mediaId ?: "")
+                            Log.e("STATESAVED", savedState.audioUrl ?: "")
+
+        //                    if (savedState.currentPosition > controller.currentPosition) {
+                                controller.seekTo(savedState.currentPosition)
+                                Log.d(
+                                    "PLAYBACK",
+                                    "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms"
+                                )
+        //                    }
+                        } else {
+                            Log.d(
+                                "PLAYBACK",
+                                "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms"
+                            )
+                        }
+                    } else {
+                        Log.d("PLAYBACK", "✗ No saved state found for: ${episodeOBJ.AudioUrl}")
+                    }
+                }
+
+
+                // Setup a listener to update the UI in real-time
+                controller.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(playing: Boolean) {
+                        isPlaying = playing
+                    }
+                    override fun onPlaybackParametersChanged(params: PlaybackParameters) {
+                        playbackSpeed = params.speed
+                    }
+                    override fun onEvents(player: Player, events: Player.Events) {
+                        duration = player.duration.coerceAtLeast(0L)
+                    }
+                })
+            } catch (e: Exception) {
+                Log.e("AudioPlayer", "Error getting MediaController", e)
+            }
+        }, MoreExecutors.directExecutor())
+
         onDispose {
             // Save current playback state when navigating away
             mediaController?.let { controller ->
@@ -344,105 +461,9 @@ fun AudioPlayer(
                     Log.d("PLAYBACK", "PlayPod dispose: Saved state on navigate away with speed: ${playbackSpeed}x")
                 }
             }
+            MediaController.releaseFuture(controllerFuture)
+            mediaController = null
         }
-    }
-
-    // 1. Setup the connection to the persistent service
-    LaunchedEffect(Unit) {
-        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-
-        controllerFuture.addListener({
-            val controller = controllerFuture.get()
-            mediaController = controller
-            isloading = controller.isLoading
-            // Sync initial state
-            isPlaying = controller.isPlaying
-            duration = controller.duration.coerceAtLeast(0L)
-            playbackSpeed = controller.playbackParameters.speed
-
-
-        if (New_POD) {
-            // Try to restore playback position from saved state
-            val playbackStateManager = PlaybackStateManager(context)
-            Log.d(
-                "PLAYBACK",
-                "AudioPlayer: Looking for saved state for URL: ${episodeOBJ.AudioUrl}"
-            )
-
-            var savedState = playbackStateManager.getPlaybackState(episodeOBJ.AudioUrl!!)
-
-            // If not found and URL contains encoded characters, try to find a match
-            if (savedState == null && episodeOBJ.AudioUrl!!.contains("%")) {
-                Log.d("PLAYBACK", "URL is encoded, searching for decoded match...")
-                val decodedUrl = try {
-                    Uri.decode(episodeOBJ.AudioUrl)
-                } catch (e: Exception) {
-                    Log.d("PLAYBACK", "Error decoding URL: ${e.message}")
-                    episodeOBJ.AudioUrl
-                }
-                savedState = playbackStateManager.getPlaybackState(decodedUrl!!)
-                if (savedState != null) {
-                    Log.d("PLAYBACK", "Found state using decoded URL")
-                }
-            }
-
-            // If still not found, search all states for matching audio URL
-            if (savedState == null) {
-                Log.d("PLAYBACK", "Searching all saved states for any match...")
-                val allStates = playbackStateManager.getAllPlaybackStates()
-                savedState = allStates.values.firstOrNull {
-                    it.audioUrl == episodeOBJ.AudioUrl ||
-                            Uri.decode(it.audioUrl) == episodeOBJ.AudioUrl ||
-                            Uri.decode(it.audioUrl) == Uri.decode(episodeOBJ.AudioUrl)
-                }
-                if (savedState != null) {
-                    Log.d("PLAYBACK", "Found matching state in all states")
-                }
-            }
-
-            if (savedState != null) {
-                Log.d(
-                    "PLAYBACK",
-                    "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms"
-                )
-                // Only restore if the saved position is reasonable (not at the very end)
-                if (savedState.currentPosition > 0 && savedState.currentPosition < savedState.duration * 0.95) {
-                    Log.e("STATECONTROLLER", controller.currentMediaItem?.mediaId ?: "")
-                    Log.e("STATESAVED", savedState.audioUrl ?: "")
-
-//                    if (savedState.currentPosition > controller.currentPosition) {
-                        controller.seekTo(savedState.currentPosition)
-                        Log.d(
-                            "PLAYBACK",
-                            "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms"
-                        )
-//                    }
-                } else {
-                    Log.d(
-                        "PLAYBACK",
-                        "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms"
-                    )
-                }
-            } else {
-                Log.d("PLAYBACK", "✗ No saved state found for: ${episodeOBJ.AudioUrl}")
-            }
-        }
-
-
-            // Setup a listener to update the UI in real-time
-            controller.addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(playing: Boolean) {
-                    isPlaying = playing
-                }
-                override fun onPlaybackParametersChanged(params: PlaybackParameters) {
-                    playbackSpeed = params.speed
-                }
-                override fun onEvents(player: Player, events: Player.Events) {
-                    duration = player.duration.coerceAtLeast(0L)
-                }
-            })
-        }, MoreExecutors.directExecutor())
     }
 
     // 2. The Progress Ticker (Updates every second)
@@ -524,7 +545,7 @@ fun AudioPlayer(
         // --- Artwork ---
         Box(
             modifier = Modifier
-                .height(artworkSize)
+                .size(artworkSize)
                 .shadow(20.dp, RoundedCornerShape(16.dp))
         ) {
             GlideImage(
@@ -544,7 +565,7 @@ fun AudioPlayer(
         // --- Info ---
         Text(
             text = episodeOBJ.EpisodeName?:"Hydration Error",
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,

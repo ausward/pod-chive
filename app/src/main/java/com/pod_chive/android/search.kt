@@ -228,15 +228,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
-//                        LazyColumn {
-//                            items(currentResults.episodes) { episode ->
-//                                EpisodeRow(
-//                                    episode = episode,
-//                                    podcastTitle = currentResults.podcastSummary.podcast_title,
-//                                    navController = navController,
-//                                    playbackState = PlaybackState.STOPPED, // Placeholder
-////                                    podcastSummary = currentResults.podcastSummary // Pass summary for image
-//                                )
+//
                                 HorizontalDivider(color = Color.LightGray, thickness = 1.dp)
                             }
                         }
