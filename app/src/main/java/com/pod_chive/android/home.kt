@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.net.Uri
 import android.text.method.LinkMovementMethod
 import android.util.Log
+import android.view.WindowMetrics
 import android.widget.TextView
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +53,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.WindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -84,6 +87,7 @@ import com.pod_chive.android.ui.components.ShowPodPage
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.max
 
 
 @Composable
@@ -145,8 +149,10 @@ fun HomePage(navController: NavController ) {
 
         } else {
             if (grid) {
+                var gridsize = max(((LocalWindowInfo.current.containerDpSize.width / 200.dp).toInt()),3)
+
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3), // 2 columns for grid
+                    columns = GridCells.Fixed(gridsize),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
