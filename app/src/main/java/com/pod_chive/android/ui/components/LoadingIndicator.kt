@@ -44,11 +44,10 @@ fun LoadingIndicator(modifierBOX: Modifier = Modifier.fillMaxSize(), modifierCPI
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
             strokeCap = StrokeCap.Round,
-            gapSize = 69.dp
+            gapSize = 69.dp,
+
         )
     }
-
-//    AnimatedChive(modifier = modifierBOX.align(Alignment.Center), isLoading =true)
 }
 
 
@@ -124,7 +123,7 @@ fun AnimatedChive(
 }
 
 // Helper to draw a curved leaf shape
-private fun DrawScope.drawLeaf(
+fun DrawScope.drawLeaf(
     color: Color,
     base: Offset,
     isLeft: Boolean,

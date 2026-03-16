@@ -12,7 +12,7 @@
 
         <item name="windowSplashScreenAnimationDuration">1200</item>
 
-        <item name="windowSplashScreenBackground">#F1F8E9</item>
+        <item name="windowSplashScreenBackground">@color/black</item>
 
         <item name="postSplashScreenTheme">@style/Theme.Podchive</item>
     </style>

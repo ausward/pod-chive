@@ -77,7 +77,9 @@ import com.pod_chive.android.model.Episode
 import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayBackProgressVis
+import com.pod_chive.android.ui.components.AnimatedChive
 import com.pod_chive.android.ui.components.LoadingIndicator
+import com.pod_chive.android.ui.components.SadChive
 import com.pod_chive.android.ui.components.ShowPodPage
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -127,17 +129,19 @@ fun HomePage(navController: NavController ) {
             )
         }}
         if (isloading) {
-            Text(
-                text = "Loading...",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.Red
-            )
+           LoadingIndicator()
+//            Text(
+//                text = "Loading...",
+//                style = MaterialTheme.typography.titleLarge,
+//                color = Color.Red
+//            )
         } else if (error != "") {
             Text(
                 text = error,
                 style = MaterialTheme.typography.titleLarge,
                 color = Color.Red
             )
+            SadChive(Modifier.fillMaxWidth(), Color.Red, true)
 
         } else {
             if (grid) {
@@ -276,8 +280,8 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
     if (isLoading) {
         LoadingIndicator()
    } else {
-       val podcastShow = PodcastShow(podcastData!!.podcastTitle, podcastData!!.podcastDescription, "https://pod-chive.com/$directory/out.json", directory, "https://pod-chive.com/$directory/cover.webp" )
-        ShowPodPage(podcastShow,podcastData!!.episodeDCS, navController = navController, isFavorite)
+       val podcastShow = PodcastShow(podcastData?.podcastTitle?:"", podcastData?.podcastDescription, "https://pod-chive.com/$directory/out.json", directory, "https://pod-chive.com/$directory/cover.webp" )
+        ShowPodPage(podcastShow,podcastData?.episodeDCS, navController = navController, isFavorite)
     }
 }
 
@@ -444,8 +448,9 @@ fun EpisodeRow(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(MaterialTheme.shapes.medium),
-                    loading = placeholder(R.mipmap.shrug),
-                    failure = placeholder(R.mipmap.shrug)
+                    loading = placeholder(R.drawable.confused_chive),
+                    failure = placeholder(R.drawable.sad_chive),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
                 )
             }
 

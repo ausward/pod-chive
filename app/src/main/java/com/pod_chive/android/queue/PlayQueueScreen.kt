@@ -369,9 +369,9 @@ fun QueueItemRow(
                 modifier = Modifier
                     .size(60.dp)
                     .clip(MaterialTheme.shapes.small),
-                loading = placeholder(R.mipmap.shrug),
-                failure = placeholder(R.mipmap.shrug),
-                contentScale = ContentScale.Crop
+                loading = placeholder(R.drawable.confused_chive),
+                failure = placeholder(R.drawable.sad_chive),
+                contentScale = ContentScale.Inside
             )
 
             Spacer(modifier = Modifier.width(12.dp))

@@ -91,8 +91,8 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
                 modifier = Modifier
                     .size(currentImageSize) // Dynamic size applied here
                     .clip(MaterialTheme.shapes.medium),
-                loading = placeholder(R.mipmap.cover),
-                failure = placeholder(R.mipmap.shrug)
+                loading = placeholder(R.drawable.confused_chive),
+                failure = placeholder(R.drawable.sad_chive)
             )
 
             Spacer(modifier = Modifier.height(16.dp))

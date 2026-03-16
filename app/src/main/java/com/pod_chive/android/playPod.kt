@@ -84,6 +84,7 @@ import java.net.URL
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import androidx.core.net.toUri
+import com.bumptech.glide.integration.compose.placeholder
 import com.pod_chive.android.model.Episode
 import com.pod_chive.android.ui.components.AnimatedChive
 
@@ -523,7 +524,7 @@ fun AudioPlayer(
         // --- Artwork ---
         Box(
             modifier = Modifier
-                .size(artworkSize)
+                .height(artworkSize)
                 .shadow(20.dp, RoundedCornerShape(16.dp))
         ) {
             GlideImage(
@@ -532,7 +533,9 @@ fun AudioPlayer(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(16.dp)),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Inside,
+                loading = placeholder(R.drawable.confused_chive),
+                failure = placeholder(R.drawable.sad_chive)
             )
         }
 

@@ -192,9 +192,9 @@ fun FavoritePodcastItem(
                 .width(80.dp)
                 .height(80.dp)
                 .clip(MaterialTheme.shapes.medium),
-            loading = placeholder(R.mipmap.shrug),
-            failure = placeholder(R.mipmap.shrug),
-            contentScale = ContentScale.Crop
+            loading = placeholder(R.drawable.confused_chive),
+            failure = placeholder(R.drawable.sad_chive),
+            contentScale = ContentScale.Inside
         )
 
         Column(

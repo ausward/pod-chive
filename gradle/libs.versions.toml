@@ -23,6 +23,7 @@ material3 = "1.4.0"
 uiText = "1.10.4"
 foundationLayout = "1.10.4"
 foundationLayoutVersion = "1.10.4"
+runtime = "1.10.5"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
@@ -58,6 +59,7 @@ androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", ve
 androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayoutVersion" }
 rssparser = { module = "com.prof18.rssparser:rssparser", version.ref = "rssparser" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
