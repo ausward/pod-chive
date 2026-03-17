@@ -160,7 +160,7 @@ fun FavoritePodcastItem(
             .fillMaxWidth()
             .clickable {
                 // Check if feedLink is an RSS URL or a local directory
-                if (favorite.feedLink.startsWith("http")) {
+                if (!favorite.feedLink.contains("pod-chive.com")) {
                     // It's an RSS feed URL - navigate using homeItem route
                     // We need to pass a homeItem object with the RSS URL
                     try {
@@ -179,7 +179,9 @@ fun FavoritePodcastItem(
                     }
                 } else {
                     // It's a local podcast directory - use the standard details route
-                    navController.navigate("details/${favorite.feedLink}")
+                    Log.e("FavoritesScreen", "Navigating to local podcast: ${favorite.feedLink}")
+                    // https://pod-chive.com == 22 chars                                                 /out.json == 9 chars
+                    navController.navigate("details/${favorite.feedLink.slice(22..<favorite.feedLink.length - 9)}")
                 }
             }
             .padding(vertical = 8.dp, horizontal = 8.dp),

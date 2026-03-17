@@ -28,7 +28,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -123,7 +122,7 @@ class MainActivity : ComponentActivity() {
                     Column(modifier = Modifier.padding(innerPadding)) {
                         NavHost(navController = navController, startDestination = "home") {
                             composable("home") {
-                                FavoriteEpisodesScreen(navController)
+                                EpisodesFromFavoritesScreen(navController)
                             }
                             composable("search") {
                                 var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -146,7 +145,7 @@ class MainActivity : ComponentActivity() {
                                 ShowPodDetsFromRSS(dets, navController  )
                             }
                             composable("favorite_episodes"){
-                                FavoriteEpisodesScreen(navController)
+                                EpisodesFromFavoritesScreen(navController)
                             }
                             composable("favorites") {
                                 FavoritesScreen(navController)

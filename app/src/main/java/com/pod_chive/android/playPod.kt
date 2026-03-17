@@ -20,10 +20,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.sharp.Help
 import androidx.compose.material.icons.automirrored.sharp.PlaylistPlay
@@ -48,7 +46,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -56,12 +53,12 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
@@ -72,21 +69,19 @@ import androidx.media3.session.SessionToken
 import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
+import com.bumptech.glide.integration.compose.placeholder
 import com.google.common.util.concurrent.MoreExecutors
+import com.pod_chive.android.model.Episode
 import com.pod_chive.android.playback.PlaybackState
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayQueueManager
-import com.pod_chive.android.ui.components.Information
+import com.pod_chive.android.ui.components.AnimatedChive
 import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URL
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import androidx.core.net.toUri
-import com.bumptech.glide.integration.compose.placeholder
-import com.pod_chive.android.model.Episode
-import com.pod_chive.android.ui.components.AnimatedChive
 
 
 @ExperimentalGlideComposeApi
@@ -621,7 +616,7 @@ fun AudioPlayer(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { mediaController?.seekBack() }, modifier = Modifier.size(48.dp)) {
-                Icon(painterResource(R.drawable.replay_10_24px), null, tint = Color.White, modifier = Modifier.size(28.dp))
+                Icon(painterResource(R.drawable.replay_10_24px), null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(32.dp))
             }
 
             // Big Play/Pause Button
@@ -650,7 +645,7 @@ fun AudioPlayer(
             }
 
             IconButton(onClick = { mediaController?.seekForward() }, modifier = Modifier.size(48.dp)) {
-                Icon(painterResource(R.drawable.outline_forward_30_24), null, tint = Color.White, modifier = Modifier.size(28.dp))
+                Icon(painterResource(R.drawable.outline_forward_30_24), null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(32.dp))
             }
         }
 
@@ -658,7 +653,8 @@ fun AudioPlayer(
 
         // --- Speed Controls ---
         Surface(
-            color = Color(0xFF1E1E1E),
+            color = MaterialTheme.colorScheme.tertiary
+            ,
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.padding(bottom = 16.dp, start = 24.dp, end = 24.dp)
         ) {
@@ -686,7 +682,7 @@ fun AudioPlayer(
                         .size(40.dp)
                         .border(
                             width = 2.dp,
-                            color = if (isDecreasePressed) Color.White else Color.Transparent,
+                            color = if (isDecreasePressed) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.tertiary,
                             shape = CircleShape
                         )
                 ) {
@@ -697,7 +693,7 @@ fun AudioPlayer(
                         Icon(
                             Icons.Filled.ArrowDownward,
                             null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onTertiary,
                             modifier = Modifier
                                 .align(Alignment.Center)
                                 .pointerInput(Unit) {
@@ -740,7 +736,7 @@ fun AudioPlayer(
                         .padding(horizontal = 16.dp)
                         .clickable { mediaController?.setPlaybackSpeed(1.0f) }
                 ) {
-                    Text("SPEED", color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+                    Text("SPEED", color = MaterialTheme.colorScheme.onTertiary, style = MaterialTheme.typography.labelSmall)
                     Text(String.format(Locale.US, "%.2fx", playbackSpeed), color = Color.White, fontWeight = FontWeight.Bold)
                 }
 
@@ -809,112 +805,7 @@ fun AudioPlayer(
             }
         }
 
-        // --- Description & Transcript Section ---
-//        var episodeDescription by remember { mutableStateOf<String?>(null) }
-//        var episodeTranscript by remember { mutableStateOf<String?>(null) }
-//        var isLoadingDetails by remember { mutableStateOf(false) }
 
-//        // Try to fetch episode details from the currently playing media item
-//        LaunchedEffect(mediaController?.currentMediaItem?.mediaId) {
-//            val currentMediaItem = mediaController?.currentMediaItem
-//            if (currentMediaItem != null) {
-//                // Check if we can extract directory from audioUrl to fetch episode data
-//                val mediaId = currentMediaItem.mediaId
-//
-//                // If it's from our server (contains pod-chive.com), try to fetch details
-//                if (mediaId.contains("pod-chive.com")) {
-//                    isLoadingDetails = true
-//                    try {
-//                        // Extract directory from URL like https://pod-chive.com/PodcastName/episode.mp3
-//                        val urlParts = mediaId.split("/")
-//                        if (urlParts.size >= 4) {
-//                            val directory = urlParts[3]
-//
-//                            // Fetch podcast details
-//                            val podcastData = com.pod_chive.android.api.RetrofitClientFront.getInstance(context)
-//                                .getPodDetails(directory)
-//
-//                            // Find matching episode by audio file path
-//                            val matchingEpisode = podcastData.episodes?.find { episode ->
-//                                mediaId.endsWith(episode.audioFilePath)
-//                            }
-//
-//                            episodeDescription = matchingEpisode?.description
-//                            // Note: transcript would need to be added to Episode data class
-//                            // For now, we'll show a placeholder
-//                        }
-//                    } catch (e: Exception) {
-//                        android.util.Log.e("PLAYPOD", "Error fetching episode details: ${e.message}")
-//                    } finally {
-//                        isLoadingDetails = false
-//                    }
-//                }
-//            }
-//        }
-
-//        // Show description if available
-//        if (!desc.isNullOrBlank()) {
-//            Spacer(modifier = Modifier.height(24.dp))
-//
-//            Surface(
-//                color = Color(0xFF1E1E1E),
-//                shape = RoundedCornerShape(12.dp),
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(horizontal = 24.dp)
-//            ) {
-//                Column(
-//                    modifier = Modifier.padding(16.dp)
-//                ) {
-//                    Text(
-//                        text = "Description",
-//                        color = MaterialTheme.colorScheme.primary,
-//                        style = MaterialTheme.typography.titleMedium,
-//                        fontWeight = FontWeight.Bold
-//                    )
-//                    Spacer(modifier = Modifier.height(8.dp))
-//
-//                    // Use HtmlText composable from home.kt
-//                    HtmlText(
-//                        html = desc,
-//                        modifier = Modifier.fillMaxWidth()
-//                    )
-//                }
-//            }
-//        }
-//
-//        // Transcript section (placeholder for future implementation)
-//        if (!transcript.isNullOrBlank()) {
-//            Spacer(modifier = Modifier.height(16.dp))
-//
-//            Surface(
-//                color = Color(0xFF1E1E1E),
-//                shape = RoundedCornerShape(12.dp),
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(horizontal = 24.dp)
-//            ) {
-//                Column(
-//                    modifier = Modifier.padding(16.dp)
-//                ) {
-//                    Text(
-//                        text = "Transcript",
-//                        color = MaterialTheme.colorScheme.primary,
-//                        style = MaterialTheme.typography.titleMedium,
-//                        fontWeight = FontWeight.Bold
-//                    )
-//                    Spacer(modifier = Modifier.height(8.dp))
-//                    Text(
-//                        text = transcript,
-//                        color = MaterialTheme.colorScheme.onSurface,
-//                        style = MaterialTheme.typography.bodyMedium
-//                    )
-//                }
-//            }
-//        }
-//
-//        // Bottom padding
-//        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
