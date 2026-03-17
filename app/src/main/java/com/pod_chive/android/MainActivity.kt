@@ -27,6 +27,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -37,6 +39,7 @@ import com.pod_chive.android.model.Episode
 import com.pod_chive.android.model.EpisodeNavType
 import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.model.playEpisode
+import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayQueueManager
 import com.pod_chive.android.ui.components.Details
 import com.pod_chive.android.ui.components.Information
@@ -45,10 +48,15 @@ import kotlin.reflect.typeOf
 
 
 class MainActivity : ComponentActivity() {
+
+
     @OptIn(ExperimentalGlideComposeApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+
         setContent {
             PodchiveTheme {
                 // 1. Initialize the NavController here
@@ -59,12 +67,12 @@ class MainActivity : ComponentActivity() {
                 val items = listOf("Home", "Search", "Play", "Favorites")
                 val routes = listOf("home", "search", "playpod", "favorites") // Match these to your NavHost routes
                 val icons = listOf(Icons.Filled.Home, Icons.Filled.Search, Icons.Filled.PlayArrow, Icons.Filled.Favorite)
-
+                val BackEntryAsState = navController.currentBackStackEntryAsState()
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     bottomBar = {
                         Column {
-                            if (currentRoute?.startsWith("playpod") != true) {
+                            if (currentRoute?.startsWith("playpod") != true  xor (BackEntryAsState.value?.destination?.hasRoute<playEpisode>() == true)) {
                                 Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 4.dp) {
                                     MiniPlayerControls()
                                 }
@@ -114,7 +122,7 @@ class MainActivity : ComponentActivity() {
                     Column(modifier = Modifier.padding(innerPadding)) {
                         NavHost(navController = navController, startDestination = "home") {
                             composable("home") {
-                                FavoriteEpisodesScreen(navController)
+                                EpisodesFromFavoritesScreen(navController)
                             }
                             composable("search") {
                                 var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -137,7 +145,7 @@ class MainActivity : ComponentActivity() {
                                 ShowPodDetsFromRSS(dets, navController  )
                             }
                             composable("favorite_episodes"){
-                                FavoriteEpisodesScreen(navController)
+                                EpisodesFromFavoritesScreen(navController)
                             }
                             composable("favorites") {
                                 FavoritesScreen(navController)
@@ -153,9 +161,28 @@ class MainActivity : ComponentActivity() {
                             }
                             composable("playpod"){
                                val pqm = PlayQueueManager(context = this@MainActivity)
+                                val pstm = PlaybackStateManager(context = this@MainActivity)
                                 val playingObj = pqm.getCurrentItem()
                                 if (playingObj != null) {
-                                    PlayPod(navController, playingObj)
+//                                    navController.navigate(playingObj.toPlayEpisode())
+                                    PlayPod(false,navController, playingObj)
+                                } else if (playingObj == null) {
+                                    val temp = pstm.getPlayingEpisode()
+                                    val tempOBj = Episode(
+                                        temp?.title,
+                                        "",
+                                        temp?.audioUrl,
+                                        temp?.publishDate ?: "",
+                                        "",
+                                        temp?.creator,
+                                        temp?.photoUrl
+                                    )
+                                    PlayPod(false,navController, tempOBj)
+
+                                }else{
+                                    val emptyItem = Episode("Nothing In Queue","Please add an episode to the queue or find something to play", "https://pod-chive.com/nothingtoplay.mp3", "",
+                                        "Hey, you, you an't got nothing in the queue, there's nothing for me to play, please find something to play. I am so bored playing nothing ", "Pod-chive", "https://pod-chive.com/nothingtoplay.webp")
+                                    PlayPod(false,navController, emptyItem)
                                 }
 
 
@@ -165,7 +192,7 @@ class MainActivity : ComponentActivity() {
 
                                 val temp = it.toRoute<playEpisode>()
 //                                val final = Episode(temp.Title, temp.description, temp.audioFilePath, temp.pubdate?:"", temp.transcript, temp.Creator, temp.PhotoUrl)
-                                PlayPod(navController, temp.EpisodeObj!!)
+                                PlayPod(true,navController, temp.EpisodeObj!!)
                             }
 //                            composable("debug_playback") {
 //                                PlaybackDebugScreen(navController)

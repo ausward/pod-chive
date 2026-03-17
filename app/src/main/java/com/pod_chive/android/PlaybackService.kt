@@ -13,6 +13,7 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import android.app.PendingIntent
+import android.util.Log
 import androidx.media3.common.Player
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
@@ -88,18 +89,18 @@ class PlaybackService : MediaSessionService() {
                 }
             }
 
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                if (isPlaying) {
-                    savePlaybackState(player)
-                    // Request audio focus when starting playback
-//                    requestAudioFocus()
-                } else {
-                    // Save state when playback stops
-                    savePlaybackState(player)
-                    // Abandon audio focus when stopping
-//                    abandonAudioFocus()
-                }
-            }
+//            override fun onIsPlayingChanged(isPlaying: Boolean) {
+//                if (isPlaying) {
+//
+//                    // Request audio focus when starting playback
+////                    requestAudioFocus()
+//                } else {
+//                    // Save state when playback stops
+////                    savePlaybackState(player)
+//                    // Abandon audio focus when stopping
+////                    abandonAudioFocus()
+//                }
+//            }
 
             private fun savePlaybackState(player: ExoPlayer) {
                 val mediaItem = player.currentMediaItem ?: return
@@ -133,15 +134,17 @@ class PlaybackService : MediaSessionService() {
             private fun restorePlaybackState(player: ExoPlayer) {
                 val mediaItem = player.currentMediaItem ?: return
                 val audioUrl = mediaItem.mediaId
+                Log.e("MEDIAID", audioUrl)
 
                 try {
                     android.util.Log.d("PLAYBACK", "Restore: Looking for saved state for $audioUrl")
                     val savedState = playbackStateManager.getPlaybackState(audioUrl)
+                    Log.e("RESTORE", savedState.toString())
 
                     if (savedState != null) {
                         android.util.Log.d("PLAYBACK", "Restore: Found - pos=${savedState.currentPosition}ms, dur=${savedState.duration}ms, speed=${savedState.playbackSpeed}x")
 
-                        if (savedState.currentPosition > 0 && savedState.duration > 0) {
+                        if (savedState.currentPosition > 0){// && savedState.duration > 0) {
                             val isAtEnd = savedState.currentPosition >= savedState.duration * 0.95
 
                             if (!isAtEnd) {
@@ -257,9 +260,9 @@ class PlaybackService : MediaSessionService() {
 
 
     override fun onDestroy() {
+
         // Abandon audio focus when the service is destroyed
 //        abandonAudioFocus()
-
         mediaSession?.run {
             val player = this.player
             if (player.currentMediaItem != null && ::playbackStateManager.isInitialized) {

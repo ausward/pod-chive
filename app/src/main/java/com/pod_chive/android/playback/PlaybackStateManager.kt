@@ -67,6 +67,16 @@ class PlaybackStateManager(context: Context) {
             e.printStackTrace()
         }
     }
+    fun getPlayingEpisode(): PlaybackState? {
+        return try {
+            val jsonStr = prefs.getString(PLAYBACK_STATES_KEY, "{}") ?: "{}"
+            val states = json.decodeFromString<Map<String, PlaybackState>>(jsonStr)
+            states.values.maxByOrNull { it.currentPosition }
+        } catch (e: Exception) {
+            Log.d("PlaybackStateManager", "Error getting playback state: ${e.message}")
+            null
+        }
+    }
 
     fun clearAllPlaybackStates() {
         prefs.edit{remove(PLAYBACK_STATES_KEY).apply()}

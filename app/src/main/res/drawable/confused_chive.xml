@@ -1,0 +1,41 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <group
+        android:name="chive_group"
+        android:pivotX="50"
+        android:pivotY="80"
+        android:rotation="0">
+
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M46,30 L54,30 Q55,30 55,31 L55,79 Q55,80 54,80 L46,80 Q45,80 45,79 L45,31 Q45,30 46,30 Z" />
+
+        <path
+            android:fillColor="#81C784"
+            android:pathData="M45,50 Q30,40 35,25 Q40,40 45,45 Z" />
+        <path
+            android:fillColor="#81C784"
+            android:pathData="M55,55 Q70,45 65,30 Q60,45 55,50 Z" />
+
+        <path android:fillColor="#000000" android:pathData="M47,39 A1.2,1.2 0 1,1 47.1,39 Z" />
+        <path android:fillColor="#000000" android:pathData="M53,37 A1.2,1.2 0 1,1 53.1,37 Z" />
+
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="1"
+            android:strokeLineCap="round"
+            android:pathData="M45,36 L49,37" /> <path
+        android:strokeColor="#000000"
+        android:strokeWidth="1"
+        android:strokeLineCap="round"
+        android:pathData="M51,35 L55,34" /> <path
+        android:strokeColor="#000000"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M46,44 Q48,42 50,44 Q52,46 54,44" />
+    </group>
+</vector>

@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.foundation.layout)
+    implementation(libs.androidx.compose.runtime)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -70,4 +71,9 @@ dependencies {
     implementation(libs.compose)
     implementation(libs.androidx.navigation.common)
     implementation(libs.rssparser)
+
+
+    implementation(libs.glide)
+
+    implementation(libs.androidx.core.splashscreen)
 }

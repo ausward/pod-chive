@@ -26,13 +26,20 @@ data class PodchiveResponse(
 
 data class Podcast(
     val id: Int,
-    val url: String,
+    var url: String?,
     val title: String,
     var description: String?,
-    val imageUrl: String?,
+    val image: String?,
     val itunesAuthor: String?,
     val lastUpdate: Long?
-) : PodcastShow(title, url, imageUrl!!, null, false, description, itunesAuthor ),  Serializable
+) : PodcastShow(title, url?:"", image!!, null, false, description, itunesAuthor ),  Serializable
+{
+    override fun toString(): String {
+        val shortDescription = description?.take(3) ?: ""
+        return "Podcast(id=$id, PodcastUrl=$url, title='$title', description='$shortDescription', image='$image', itunesAuthor=$itunesAuthor, lastUpdate=$lastUpdate)"
+
+    }
+}
 
 
 data class homeList(
@@ -184,6 +191,10 @@ interface PodchiveFront {
 data class PodcastDetailResponse(
     @SerializedName("PodcastTitle")
     val podcastTitle: String,
+
+    @SerializedName("PodcastDescription")
+    val podcastDescription: String,
+
 
     @SerializedName("Episodes")
     val episodeDCS: List<EpisodeDC>

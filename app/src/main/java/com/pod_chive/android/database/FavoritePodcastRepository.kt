@@ -15,7 +15,13 @@ data class FavoritePodcast(
     var description: String?,
     val title: String,
     val addedAt: Long = System.currentTimeMillis()
-) : PodcastShow(title, feedLink, imageLocation)
+) : PodcastShow(title, feedLink, imageLocation){
+    override fun toString(): String {
+        return "FavoritePodcast(id=$id, feedLink='$feedLink', imageLocation='$imageLocation', description=$description, title='$title', addedAt=$addedAt)"
+    }
+}
+
+
 
 class FavoritePodcastRepository(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("podchive_prefs", Context.MODE_PRIVATE)

@@ -88,10 +88,17 @@ private class FavoriteEpisodesPageCache(context: Context) {
     }
 
     fun save(favoritesSignature: String, episodes: List<EpisodeWithShowData>) {
+        lateinit var episodesToSave: List<EpisodeWithShowData>
+        if (episodes.size > 50){
+            episodesToSave = episodes.subList(0, 50)
+        } else {
+            episodesToSave = episodes
+        }
+
         val payload = FavoriteEpisodesCachePayload(
             favoritesSignature = favoritesSignature,
             cachedAtMs = System.currentTimeMillis(),
-            episodes = episodes
+            episodes = episodesToSave
         )
         prefs.edit { putString("payload", json.encodeToString(payload)) }
     }
@@ -124,7 +131,7 @@ private fun parseEpisodeTimeMillis(pubDate: String): Long {
 }
 
 @Composable
-fun FavoriteEpisodesScreen(navController: NavController) {
+fun EpisodesFromFavoritesScreen(navController: NavController) {
     val context = LocalContext.current
     var episodes by remember { mutableStateOf<List<EpisodeWithShowData>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -144,6 +151,11 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                 return@LaunchedEffect
             }
 
+            for (favorite in favorites) {
+                Log.d("FavoriteEpisodes", "Favorite: ${favorite.toString()}")
+            }
+
+
             val favoritesSignature = buildFavoritesSignature(favorites)
             val cachedEpisodes = withContext(Dispatchers.IO) {
                 pageCache.load(favoritesSignature = favoritesSignature, ttlMs = 20 * 60 * 1000)
@@ -162,7 +174,8 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                 favorites.map { favorite ->
                     async {
                         try {
-                            if (favorite.feedLink.startsWith("http")) {
+
+                            if (!favorite.feedLink.contains("pod-chive.com")) {
                                 // RSS feed
                                 when (val result = RssDataSource.parseRssFeed(favorite.feedLink)) {
                                     is RssFeedResult.Success -> {
@@ -182,14 +195,16 @@ fun FavoriteEpisodesScreen(navController: NavController) {
                             } else {
                                 // Local podcast
                                 val podcastData = RetrofitClientFront.getInstance(context)
-                                    .getPodDetails(favorite.feedLink)
+                                    .getPodDetails(favorite.feedLink.slice(22..<favorite.feedLink.length - 9))
                                 podcastData.episodeDCS.map { episode ->
-                                    episode.photo = "https://pod-chive.com/${favorite.feedLink}/cover.webp"
+                                    episode.photo = "https://pod-chive.com/${favorite.feedLink.slice(22..<favorite.feedLink.length - 9)}/cover.webp"
                                     episode.creator = favorite.title
                                     episode.audioFilePath = "${episode.audioFilePath}"
+
+                                    Log.e("epPhoto", episode.photo.toString())
                                     EpisodeWithShowData(
                                         episodeDC = episode,
-                                        podcastDirectory = favorite.feedLink,
+                                        podcastDirectory = favorite.feedLink.slice(22..<favorite.feedLink.length - 9), //favorite.feedLink,
                                         isRss = false
                                     )
                                 } ?: emptyList()

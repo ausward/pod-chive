@@ -1,36 +1,25 @@
 package com.pod_chive.android
 
-import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,12 +30,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -54,17 +40,14 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.pod_chive.android.api.EpisodeDC
+import com.pod_chive.android.api.Podcast
 import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RssDataSource
 import com.pod_chive.android.api.RssFeedResult
-import com.pod_chive.android.api.homeItem
-import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
 import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.ui.components.LoadingIndicator
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import com.pod_chive.android.ui.components.ShowPodPage
 import java.io.Serializable
 
 
@@ -77,6 +60,25 @@ sealed class SearchResultType : Serializable {
     data class Podcasts(val podcasts: ArrayList<PodcastShow>) : SearchResultType()
     data class RssEpisodes(val podcastSummary: PodcastShow, val episodeDCS: List<EpisodeDC>) : SearchResultType()
     data class Error(val message: String) : SearchResultType()
+}
+
+fun removeDotRSS(podcasts: List<Podcast>): List<Podcast>
+{
+    val new: MutableList<Podcast> = mutableListOf<Podcast>()
+    for (podcast in podcasts){
+        podcast.PodcastUrl = podcast.url
+
+        Log.e("REMOVE?", "Podcast URL: $podcast")
+        Log.e("REMOVE-check", podcast.url?.endsWith(".rss", ignoreCase = true).toString())
+        if (podcast.url?.contains("buzzsprout.com") == true){
+            Log.e("REMOVED", "Podcast URL ends with .rss: ${podcast.url}")
+        } else{
+            new += podcast
+        }
+
+    }
+    return new
+
 }
 
 //enum class PlaybackState { PLAYING, PAUSED, STOPPED }
@@ -134,6 +136,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                         Log.d("PodchiveAPI", "result: ${result.podcast.PodcastName} ${result.episodeDCS?.size}")
                         if (!result.episodeDCS.isNullOrEmpty()) {
 //                            Log.d("PodchiveAPI", "Episodes: ${result.episodes.size}")
+
                             searchResults = SearchResultType.RssEpisodes(result.podcast, result.episodeDCS)
                             navController.navigate(result.podcast)
                         } else {
@@ -151,13 +154,14 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 val response = RetrofitClient.getInstance(context).searchPodcasts(term = SearchString)
                 Log.d("PodchiveAPI", "response: $response")
                 response.sort()
+                response.results = removeDotRSS(response.results)
                 val homeItems = ArrayList(response.results.map { podcast ->
                     PodcastShow(
                         podcast.title,
-                         podcast.showDescription ?: "",
-                         podcast.url,
-                         podcast.url.substringAfterLast('/'),
-                         podcast.imageUrl
+                         podcast.description ?: "",
+                         podcast.PodcastUrl?:"",
+                        podcast.PodcastUrl?.substringAfterLast('/'),
+                         podcast.image
                     )
 
 
@@ -224,15 +228,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
-//                        LazyColumn {
-//                            items(currentResults.episodes) { episode ->
-//                                EpisodeRow(
-//                                    episode = episode,
-//                                    podcastTitle = currentResults.podcastSummary.podcast_title,
-//                                    navController = navController,
-//                                    playbackState = PlaybackState.STOPPED, // Placeholder
-////                                    podcastSummary = currentResults.podcastSummary // Pass summary for image
-//                                )
+//
                                 HorizontalDivider(color = Color.LightGray, thickness = 1.dp)
                             }
                         }
@@ -275,7 +271,7 @@ fun SearchItemView(podcast: PodcastShow, navController: NavController) {
                 text = podcast.showDescription?:"",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2
+                maxLines = 3
             )
         }
     }
@@ -292,33 +288,27 @@ fun SearchItemView(podcast: PodcastShow, navController: NavController) {
 @Composable
 fun ShowPodDetsFromRSS(homeitems: PodcastShow, navController: NavController) {
     val context = LocalContext.current
-    var podcastData by remember { mutableStateOf<PodcastShow?>(null) }
+    var podcastData by remember { mutableStateOf<PodcastShow?>(homeitems) }
     var epData by remember { mutableStateOf<List<EpisodeDC>?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    val scrollState = rememberScrollState()
-    val showStickyTitle = scrollState.value > 320
-    var isFavorite by remember { mutableStateOf(false) }
-    // 2. Calculate dynamic size
-    // Base size is 250dp, it will shrink as scrollState.value increases
-    val maxImageSize = 250f
     var searchResults by remember { mutableStateOf<SearchResultType>(SearchResultType.Empty) }
-
-    val minImageSize = 80f
-//    val scrollThreshold = 500f // How fast it shrinks
-
-    val currentImageSize = (maxImageSize - (scrollState.value / 2))
-        .coerceAtLeast(minImageSize).dp
-
+    var isFavorite by remember { mutableStateOf(false) }
     LaunchedEffect(homeitems) {
         try {
 
-            when (val result = RssDataSource.parseRssFeed(homeitems.PodcastUrl?:"")) {
+            when (val result = RssDataSource.parseRssFeed(homeitems.PodcastUrl ?: "")) {
                 is RssFeedResult.Success -> {
                     epData = result.episodeDCS
+
+                    epData?.size?.let {
+                        if (it > 200)
+                            epData = epData?.take(500)
+                    }
                     podcastData = result.podcast
+                    podcastData!!.PodcastUrl = homeitems.PodcastUrl
                     Log.d(
-                        "PodchiveAPI",
-                        "result: ${result.podcast.PodcastName} ${result.episodeDCS?.size}"
+                        "Search",
+                        "result: ${result.podcast.PodcastName} ${result.episodeDCS?.size} ${podcastData?.PodcastUrl}"
                     )
                     val repository = FavoritePodcastRepository(context)
                     isFavorite = repository.isFavorite(podcastData?.PodcastUrl)
@@ -336,138 +326,15 @@ fun ShowPodDetsFromRSS(homeitems: PodcastShow, navController: NavController) {
 
                 else -> {}
             }
-            } catch (e: Exception) {
+        } catch (e: Exception) {
             Log.e("PodchiveAPI", "Error fetching podcast details", e)
         } finally {
             isLoading = false
         }
-
     }
-
     if (isLoading) {
         LoadingIndicator()
     } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState) // Standard Column scrolling
-        ) {
-            // --- Shinking Header ---
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                GlideImage(
-                    model = podcastData?.Cover_Image,
-                    contentDescription = "Cover",
-                    modifier = Modifier
-                        .size(currentImageSize) // Dynamic size applied here
-                        .clip(MaterialTheme.shapes.medium),
-                    loading = placeholder(R.mipmap.shrug),
-                    failure = placeholder(R.mipmap.shrug)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                podcastData?.PodcastName?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.headlineLarge,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // --- Episode List ---
-            // Since we aren't in a LazyColumn, we use a simple forEach
-            epData?.forEach { episode ->
-                episode.description
-                EpisodeRow(
-                    episode,
-                    null,
-
-                    navController,
-                    PlaybackState.STOPPED,
-//                    episode.audioFilePath,
-//                    podcastData?.cover_image_url
-                )
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.tertiary,
-                    thickness = 1.dp,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-        }
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = if (showStickyTitle) MaterialTheme.colorScheme.surface else Color.Transparent,
-            tonalElevation = if (showStickyTitle) 4.dp else 0.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .statusBarsPadding() // Handles the notch/status bar area
-                    .height(64.dp)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                if (showStickyTitle) {
-                    Text(
-                        text = podcastData?.PodcastName ?: "",
-                        style = MaterialTheme.typography.titleLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .weight(1f)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-
-                IconButton(onClick = {
-                    val repository = FavoritePodcastRepository(context)
-                    GlobalScope.launch(Dispatchers.IO) {
-                        if (isFavorite) {
-                            val favorite = repository.getFavoriteByFeedLink(podcastData?.PodcastUrl)
-                            if (favorite != null) {
-                                repository.deleteFavorite(favorite)
-                            }
-                        } else {
-
-                                repository.insertFavorite(
-                                    FavoritePodcast(
-                                        feedLink = podcastData?.PodcastUrl ?: "",
-                                        imageLocation = podcastData?.Cover_Image ?: "",
-                                        description = podcastData?.showDescription ?: "",
-                                        title = podcastData?.PodcastName ?: "",
-
-                                    )
-                                )
-
-                        }
-                        isFavorite = !isFavorite
-                    }
-                }) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
+        ShowPodPage(podcastData, epData, navController, isFavorite)
     }
 }

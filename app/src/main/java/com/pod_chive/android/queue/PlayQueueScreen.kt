@@ -35,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import android.net.Uri
 import android.content.ComponentName
+import android.util.Log
 import android.widget.Toast
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -47,7 +48,9 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.core.net.toUri
+import androidx.media3.common.Player
 import com.pod_chive.android.model.Episode
+import java.lang.Thread.sleep
 import java.util.UUID
 
 @OptIn(ExperimentalGlideComposeApi::class, ExperimentalMaterial3Api::class)
@@ -64,12 +67,16 @@ fun PlayQueueScreen(navController: NavController) {
     var revealedRowId by remember { mutableStateOf<String?>(null) }
 
     // Connect to MediaController
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         controllerFuture.addListener({
             controller = controllerFuture.get()
         }, MoreExecutors.directExecutor())
+
+        onDispose {
+            controller?.release()
+        }
     }
 
     // Refresh queue and playback states periodically
@@ -93,6 +100,7 @@ fun PlayQueueScreen(navController: NavController) {
     }
 
     Scaffold(
+
         topBar = {
             TopAppBar(
                 title = {
@@ -122,7 +130,10 @@ fun PlayQueueScreen(navController: NavController) {
                 }
             )
         }
+
     ) { padding ->
+        Column() {
+        }
         if (queueItems.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -227,10 +238,13 @@ fun PlayQueueScreen(navController: NavController) {
                                 .build()
 
                             Toast.makeText(context, "Playing: ${item.EpisodeName}", Toast.LENGTH_SHORT).show()
-
+                            val timetoSeek = playbackStateManager.getPlaybackState(item.AudioUrl?:"")?.currentPosition
+                            Log.e("TIME TO SEEK", timetoSeek.toString() ?: "")
                             player.setMediaItem(mediaItem)
                             player.prepare()
                             player.play()
+                            if (timetoSeek != null) player.seekTo(timetoSeek)
+
 
                             // PlaybackService will automatically restore position when STATE_READY
 
@@ -238,19 +252,7 @@ fun PlayQueueScreen(navController: NavController) {
                             queueManager.moveToTop(item.idValue?:"")
                             queueItems = queueManager.getQueue()
                             currentIndex = queueManager.getCurrentIndex()
-
-                            // Navigate to PlayPod
-                            val encodedAudioUrl = Uri.encode(item.AudioUrl)
-                            val encodedTitle = Uri.encode(item.EpisodeName)
-                            val encodedPhotoUrl = Uri.encode(item.PhotoUrl)
-                            val encodedCreator = Uri.encode(item.Creator)
-                            val encodedDescription = Uri.encode(item.Description)
-                            val encodededtrans = Uri.encode(item.TranscriptUrl)
-                            val encodedDate = Uri.encode(item.PublishDate)
-                            navController.navigate(
-                                "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcripturl=$encodededtrans&publishDate=$encodedDate"
-                            )
-
+                           navController.navigate(item.toPlayEpisode())
                         },
                         onRemove = {
                             coroutineScope.launch(Dispatchers.IO) {
@@ -270,6 +272,8 @@ fun PlayQueueScreen(navController: NavController) {
                         )
                     }
                 }
+
+
             }
         }
     }
@@ -369,9 +373,9 @@ fun QueueItemRow(
                 modifier = Modifier
                     .size(60.dp)
                     .clip(MaterialTheme.shapes.small),
-                loading = placeholder(R.mipmap.shrug),
-                failure = placeholder(R.mipmap.shrug),
-                contentScale = ContentScale.Crop
+                loading = placeholder(R.drawable.confused_chive),
+                failure = placeholder(R.drawable.sad_chive),
+                contentScale = ContentScale.Inside
             )
 
             Spacer(modifier = Modifier.width(12.dp))

@@ -5,7 +5,9 @@ import android.content.ComponentName
 import android.net.Uri
 import android.text.method.LinkMovementMethod
 import android.util.Log
+import android.view.WindowMetrics
 import android.widget.TextView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,13 +15,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -28,10 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ViewComfyAlt
 import androidx.compose.material.icons.filled.ViewDay
@@ -58,12 +56,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.WindowInfo
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.net.toUri
 import androidx.core.text.HtmlCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -80,15 +82,18 @@ import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RetrofitClientFront
 import com.pod_chive.android.api.homeItem
 import com.pod_chive.android.model.Episode
+import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayBackProgressVis
+import com.pod_chive.android.ui.components.AnimatedChive
 import com.pod_chive.android.ui.components.LoadingIndicator
+import com.pod_chive.android.ui.components.SadChive
+import com.pod_chive.android.ui.components.ShowPodPage
+import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.core.net.toUri
+import kotlin.math.max
 
 
 @Composable
@@ -134,22 +139,26 @@ fun HomePage(navController: NavController ) {
             )
         }}
         if (isloading) {
-            Text(
-                text = "Loading...",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.Red
-            )
+           LoadingIndicator()
+//            Text(
+//                text = "Loading...",
+//                style = MaterialTheme.typography.titleLarge,
+//                color = Color.Red
+//            )
         } else if (error != "") {
             Text(
                 text = error,
                 style = MaterialTheme.typography.titleLarge,
                 color = Color.Red
             )
+            SadChive(Modifier.fillMaxWidth(), Color.Red, true)
 
         } else {
-            if (grid) {
+            if (   grid) {
+                var gridsize = max(((LocalWindowInfo.current.containerDpSize.width / 150.dp).toInt()),3)
+
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3), // 2 columns for grid
+                    columns = GridCells.Fixed(gridsize),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -206,7 +215,7 @@ fun MainPodListExpanderHor(podcast: homeItem, onItemClick: () -> Unit ){
 @Composable
 fun MainPodGridItem(podcast: homeItem, onItemClick: () -> Unit) {
     val photoURL = "https://pod-chive.com/" + podcast.output_directory + "/cover.webp"
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardColors(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)) {
         Column(modifier = Modifier.padding(8.dp).clickable{onItemClick()} ){
             GlideImage(
                 model = photoURL,
@@ -234,19 +243,6 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var isFavorite by remember { mutableStateOf(false) }
 
-
-
-    val scrollState = rememberScrollState()
-    val showStickyTitle = scrollState.value > 320
-    // 2. Calculate dynamic size
-    // Base size is 250dp, it will shrink as scrollState.value increases
-    val maxImageSize = 250f
-    val minImageSize = 80f
-    val scrollThreshold = 500f // How fast it shrinks
-
-    val currentImageSize = (maxImageSize - (scrollState.value / 2))
-        .coerceAtLeast(minImageSize).dp
-
     LaunchedEffect(directory) {
         try {
             podcastData = RetrofitClientFront.getInstance(context).getPodDetails(directory)
@@ -262,122 +258,41 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
         }
     }
 
+
+//    if (showShowDesc) {
+//        AlertDialog(
+//            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface),
+//            onDismissRequest = { showShowDesc = false },
+//            confirmButton = {
+//                TextButton(onClick = { showShowDesc = false }) {
+//                    Text("Close")
+//                }
+//            },
+//            title = {
+//                Text(
+//                    text = podcastData?.podcastTitle ?: "",
+//                    style = MaterialTheme.typography.titleLarge
+//                )
+//            },
+//            text = {
+//                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+//                    HtmlText(
+//                        html = podcastData?.podcastDescription ?: "No description available."
+//                    )
+//                }
+//            },
+//            containerColor = MaterialTheme.colorScheme.surface,
+//            titleContentColor = MaterialTheme.colorScheme.onSurface,
+//            textContentColor = MaterialTheme.colorScheme.onSurface,
+//            properties = androidx.compose.ui.window.DialogProperties(true, true,true)
+//        )
+//
+//    }
     if (isLoading) {
         LoadingIndicator()
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-        ) {
-            // --- Shinking Header ---
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                GlideImage(
-                    model = "https://pod-chive.com/$directory/cover.webp",
-                    contentDescription = "Cover",
-                    modifier = Modifier
-                        .size(currentImageSize) // Dynamic size applied here
-                        .clip(MaterialTheme.shapes.medium),
-                    loading = placeholder(R.mipmap.shrug),
-                    failure = placeholder(R.mipmap.shrug)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = podcastData?.podcastTitle ?: " ",
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    textAlign = TextAlign.Center
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // --- Episode List ---
-            // Since we aren't in a LazyColumn, we use a simple forEach
-            podcastData?.episodeDCS?.forEach { episode ->
-                EpisodeRow(
-                    episode,
-                    directory,
-//                    podcastData?.podcastTitle,
-                    navController,
-                    PlaybackState.STOPPED
-                )
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.tertiary,
-                    thickness = 1.dp,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-        }
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = if (showStickyTitle) MaterialTheme.colorScheme.surface else Color.Transparent,
-            tonalElevation = if (showStickyTitle) 4.dp else 0.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .statusBarsPadding() // Handles the notch/status bar area
-                    .height(64.dp)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                if (showStickyTitle) {
-                    Text(
-                        text = podcastData?.podcastTitle ?: "",
-                        style = MaterialTheme.typography.titleLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .weight(1f)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-
-                IconButton(onClick = {
-                    val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
-                    GlobalScope.launch(Dispatchers.IO) {
-                        if (isFavorite) {
-                            val favorite = repository.getFavoriteByFeedLink(directory)
-                            if (favorite != null) {
-                                repository.deleteFavorite(favorite)
-                            }
-                        } else {
-                            repository.insertFavorite(
-                                com.pod_chive.android.database.FavoritePodcast(
-                                    feedLink = directory,
-                                    imageLocation = "https://pod-chive.com/$directory/cover.webp",
-                                    description = "",
-                                    title = podcastData?.podcastTitle ?: ""
-                                )
-                            )
-                        }
-                        isFavorite = !isFavorite
-                    }
-                }) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
+   } else {
+       val podcastShow = PodcastShow(podcastData?.podcastTitle?:"", podcastData?.podcastDescription, "https://pod-chive.com/$directory/out.json", directory, "https://pod-chive.com/$directory/cover.webp" )
+        ShowPodPage(podcastShow,podcastData?.episodeDCS, navController = navController, isFavorite)
     }
 }
 
@@ -400,13 +315,15 @@ fun EpisodeRow(
 
     var audioUrl = ""
     var photoUrl = ""
-    if (directory != null) {
+    if (directory != "" && directory != null) {
         audioUrl = "https://pod-chive.com/${episodeDC.audioFilePath}"
         photoUrl = "https://pod-chive.com/$directory/cover.webp"
     } else {
         audioUrl = episodeDC.audioFilePath
-        photoUrl = episodeDC.photo?:""
+        photoUrl = episodeDC.PhotoUrl?:episodeDC.photo?:"https://pod-chive.com/cover.webp"
     }
+//    Log.e("PHOTOURL", photoUrl)
+//    Log.e("AUDIOURL", audioUrl)
 
 //    val context = LocalContext.current
 //    val stateManager = remember { PlaybackStateManager(context) }
@@ -433,17 +350,24 @@ fun EpisodeRow(
             SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         controllerFuture.addListener({
-            controller = controllerFuture.get() as MediaController?
+            try {
+                controller = controllerFuture.get() as MediaController?
+            } catch (e: Exception) {
+                Log.e("EpisodeRow", "Error getting MediaController", e)
+            }
         }, MoreExecutors.directExecutor())
 
         onDispose {
-            controller?.release()
+            MediaController.releaseFuture(controllerFuture)
             controller = null
         }
     }
 
     if (showDialog) {
         AlertDialog(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.tertiary,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
             onDismissRequest = { showDialog = false },
             confirmButton = {
                 TextButton(onClick = { showDialog = false }) {
@@ -457,6 +381,7 @@ fun EpisodeRow(
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     HtmlText(html = episodeDC.description ?: "No description available.")
                 }
+
             }
         )
     }
@@ -469,17 +394,6 @@ fun EpisodeRow(
         episodeDC.PhotoUrl = photoUrl
 
         Log.d("HOME470", episodeDC.toString())
-
-
-//        val queueItem = com.pod_chive.android.queue.QueueItem(
-//            id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-//            title = episodeDC.title ?: "",
-//            audioUrl = audioUrl,
-//            photoUrl = photoUrl,
-//            creator = episodeDC.creator ?: "Unknown",
-//            description = episodeDC.description,
-//            transcript = episodeDC.transcript,
-//        )
 
 
         queueManager.addToQueue(episodeDC)
@@ -518,30 +432,12 @@ fun EpisodeRow(
                 episodeDC.idValue = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl)
                 episodeDC.AudioUrl = audioUrl
                 episodeDC.PhotoUrl = photoUrl
-//                val queueItem = com.pod_chive.android.queue.QueueItem(
-//                    id = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl),
-//                    title = episodeDC.title ?: "",
-//                    audioUrl = audioUrl,
-//                    photoUrl = photoUrl,
-//                    creator = episodeDC.creator ?: "Unknown",
-//                    description = episodeDC.description,
-//                    transcript = episodeDC.transcript,
-//                    publishDate = episodeDC.pubDate
-//                )
+
                 queueManager.addToQueue(episodeDC)
                 queueManager.moveToTop(com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl))
                 Log.d("QUEUE", "Added and moved to top: ${episodeDC.EpisodeName}")
 
-//                val encodedAudioUrl = Uri.encode(audioUrl)
-//                val encodedTitle = Uri.encode(episodeDC.title ?: "")
-//                val encodedPhotoUrl = Uri.encode(photoUrl)
-//                val encodedCreator = Uri.encode(episodeDC.creator ?: "")
-//                val encodedDescription = Uri.encode(episodeDC.description ?: "")
-//                val encodedTranscript = Uri.encode(episodeDC.transcript ?: "")
-//                val encodedDate = Uri.encode(episodeDC.pubDate ?: "")
-//                navController.navigate(
-//                    "playpod?audioUrl=$encodedAudioUrl&title=$encodedTitle&photoUrl=$encodedPhotoUrl&creator=$encodedCreator&desc=$encodedDescription&transcript=$encodedTranscript&publishDate=$encodedDate"
-//                )\
+
 
                 Log.d("HOME546", episodeDC.MasterToString())
 //                navController.navigate(episodeDC.toPlayEpisode())
@@ -571,22 +467,31 @@ fun EpisodeRow(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(MaterialTheme.shapes.medium),
-                    loading = placeholder(R.mipmap.shrug),
-                    failure = placeholder(R.mipmap.shrug)
-                    )
+                    loading = placeholder(R.drawable.confused_chive),
+                    failure = placeholder(R.drawable.sad_chive),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                )
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                if (showPodcastImage && episodeDC.creator != null) {
+                    Text(
+                        text = episodeDC.creator ?: "",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 Text(
                     text = episodeDC.title ?: "",
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                val displayDate = episodeDC.pubDate?.let { 
-                    if (it.length >= 16) it.substring(0, 16) else it 
+
+                val displayDate = episodeDC.pubDate?.let {
+                    if (it.length >= 16) it.substring(0, 16) else it
                 } ?: ""
                 Text(
                     text = displayDate,
@@ -598,13 +503,16 @@ fun EpisodeRow(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 episodeDC.description?.let { desc ->
-                    val displayDesc = if (desc.length > 60) desc.take(60) + "..." else desc
+                    var  displayDesc = desc
+                    if (LocalWindowInfo.current.containerSize.width < 400) {
+                         displayDesc = if (desc.length > 60) desc.take(60) + "..." else desc
+                    }
                     HtmlText(
                         html = displayDesc,
                         maxLines = 2,
                     )
                 }
-                
+
                 if (state.duration > 0) {
 //                     var progressPercent = 100f * state.currentPosition.toFloat() / state.duration.toFloat()
 //                    (state.currentPosition.toFloat() / state.duration.toFloat() * 100f)
@@ -621,53 +529,64 @@ fun EpisodeRow(
             }
 
             Spacer(modifier = Modifier.width(8.dp))
+            Column() {
 
-            // Add to Queue button
-            IconButton(
-                onClick = {
 
-                    addToQueue(audioUrl, photoUrl)
-                },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                    contentDescription = "Add to queue",
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+                // Play button
+                IconButton(
+                    enabled = controller != null,
+                    onClick = {
+                        var audioUrl = ""
+                        var photoUrl = ""
+                        if (directory != null) {
+                            audioUrl = "${episodeDC.audioFilePath}"
+                            photoUrl = "https://pod-chive.com/$directory/cover.webp"
+                        } else {
+                            audioUrl = episodeDC.audioFilePath ?: return@IconButton
+                            photoUrl = episodeDC.photo ?: return@IconButton
+                        }
 
-            // Play button
-            IconButton(
-                enabled = controller != null,
-                onClick = {
-                    var audioUrl = ""
-                    var photoUrl = ""
-                    if (directory != null) {
-                        audioUrl = "${episodeDC.audioFilePath}"
-                        photoUrl = "https://pod-chive.com/$directory/cover.webp"
-                    } else {
-                        audioUrl = episodeDC.audioFilePath ?: return@IconButton
-                        photoUrl = episodeDC.photo ?: return@IconButton
-                    }
-                    val Temp = Episode(audioUrl, episodeDC.title ?: "", episodeDC.pubDate ?: "", photoUrl)
-                    Temp.TranscriptUrl = episodeDC.transcript
-                    Temp.Creator = episodeDC.creator
-                    Temp.Description = episodeDC.description
-                    playEpisode(Temp)
-                },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = "Play episode",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
+                        val Temp =
+                            Episode(
+                                audioUrl,
+                                episodeDC.title ?: "",
+                                episodeDC.pubDate ?: "",
+                                photoUrl
+                            )
+
+                        Temp.TranscriptUrl = episodeDC.transcript
+                        Temp.Creator = episodeDC.creator
+                        Temp.Description = episodeDC.description
+                        Log.e("episodeRowPlay", Temp.toString())
+                        playEpisode(Temp)
+                    },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = "Play episode",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                // Add to Queue button
+                IconButton(
+                    onClick = {
+
+                        addToQueue(audioUrl, photoUrl)
+                    },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                        contentDescription = "Add to queue",
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(35.dp)
+                    )
+                }
+
             }
         }
-
     }
 }
 
@@ -687,6 +606,6 @@ fun HtmlText(html: String, modifier: Modifier = Modifier, maxLines: Int = Int.MA
                 setTextColor(textColor)
             }
         },
-        update = { it.text = HtmlCompat.fromHtml(html ?: "", HtmlCompat.FROM_HTML_MODE_COMPACT) }
+        update = { it.text = HtmlCompat.fromHtml(html ?: "", HtmlCompat.FROM_HTML_MODE_LEGACY) }
     )
 }

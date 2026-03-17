@@ -20,10 +20,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.sharp.Help
 import androidx.compose.material.icons.automirrored.sharp.PlaylistPlay
@@ -55,12 +53,12 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
@@ -71,25 +69,28 @@ import androidx.media3.session.SessionToken
 import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
+import com.bumptech.glide.integration.compose.placeholder
 import com.google.common.util.concurrent.MoreExecutors
+import com.pod_chive.android.model.Episode
 import com.pod_chive.android.playback.PlaybackState
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayQueueManager
-import com.pod_chive.android.ui.components.Information
+import com.pod_chive.android.ui.components.AnimatedChive
 import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URL
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import androidx.core.net.toUri
-import com.pod_chive.android.model.Episode
+
 
 @ExperimentalGlideComposeApi
 @OptIn(ExperimentalGlideComposeApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun PlayPod(
+    NEW_POD: Boolean = false,
+
 
     navController: NavController,
     episodeOBJ: Episode,
@@ -98,7 +99,7 @@ fun PlayPod(
     Log.e("PLAYPOD", episodeOBJ.toString())
     var controller by remember { mutableStateOf<MediaController?>(null) }
     val context = LocalContext.current
-    var transcript = if (episodeOBJ.TranscriptUrl != null && episodeOBJ.TranscriptUrl != "") {
+    val transcript = if (episodeOBJ.TranscriptUrl != null && episodeOBJ.TranscriptUrl != "") {
         if (episodeOBJ.TranscriptUrl!!.contains("http*")) {
             Log.e("PLAYPOD", "transcripturl: ${episodeOBJ.TranscriptUrl}")
             episodeOBJ.TranscriptData = URL(episodeOBJ.TranscriptUrl).readText()
@@ -111,62 +112,63 @@ fun PlayPod(
         ""
     }
 
-
-
-
-
     BackHandler(enabled = navController.previousBackStackEntry != null) {
         navController.navigateUp()
     }
 
 
 
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
 
         controllerFuture.addListener({
-            val pc = controllerFuture.get()
-            controller = pc
-            if (controller?.isPlaying != true) {
-            // If no audio URL was provided, load and play the top item from the queue
-//            if (audioUrl.isNullOrBlank() || audioUrl == " ") {
-                val queueManager = PlayQueueManager(context)
-                val queueItems = queueManager.getQueue()
-                if (queueItems.isNotEmpty()) {
-                    val topItem = queueItems[0]
+            try {
+                val pc = controllerFuture.get()
+                controller = pc
+                if (controller?.isPlaying != true) {
+                // If no audio URL was provided, load and play the top item from the queue
+    //            if (audioUrl.isNullOrBlank() || audioUrl == " ") {
+                    val queueManager = PlayQueueManager(context)
+                    val queueItems = queueManager.getQueue()
+                    if (queueItems.isNotEmpty()) {
+                        val topItem = queueItems[0]
 
-                    val mediaItem = MediaItem.Builder()
-                        .setMediaId(topItem.AudioUrl?:"")
-                        .setUri(topItem.AudioUrl!!.toUri())
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setTitle(topItem.EpisodeName)
-                                .setArtist(topItem.Creator)
-                                .setArtworkUri(topItem.PhotoUrl!!.toUri())
-                                .build()
-                        )
-                        .build()
+                        val mediaItem = MediaItem.Builder()
+                            .setMediaId(topItem.AudioUrl?:"")
+                            .setUri(topItem.AudioUrl!!.toUri())
+                            .setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setTitle(topItem.EpisodeName)
+                                    .setArtist(topItem.Creator)
+                                    .setArtworkUri(topItem.PhotoUrl!!.toUri())
+                                    .build()
+                            )
+                            .build()
 
-                    pc.setMediaItem(mediaItem)
-                    pc.prepare()
-                    pc.play()
+                        pc.setMediaItem(mediaItem)
+                        pc.prepare()
+                        pc.play()
 
-                    Log.d("PLAYPLAY", "Playing top queue item: ${topItem.EpisodeName}")
-                } else {
-                    Log.d("PLAYPLAY", "Queue is empty, no item to play")
+                        Log.d("PLAYPLAY", "Playing top queue item: ${topItem.EpisodeName}")
+                    } else {
+                        Log.d("PLAYPLAY", "Queue is empty, no item to play")
+                    }
                 }
-            } else {
-                // Pull the metadata that was set in EpisodeRow
-                val metadataTitle = pc.mediaMetadata.title?.toString()
-                val metadataCreator = pc.mediaMetadata.artist?.toString()
-                val metadataPhotoUrl = pc.mediaMetadata.artworkUri?.toString()
+            } catch (e: Exception) {
+                Log.e("PlayPod", "Error getting MediaController", e)
             }
         }, MoreExecutors.directExecutor())
+
+        onDispose {
+            MediaController.releaseFuture(controllerFuture)
+            controller = null
+        }
     }
 
     Column {
         AudioPlayer(
+            NEW_POD,
             episodeOBJ,
             navController = navController,
 
@@ -188,29 +190,38 @@ fun MiniPlayerControls() {
     val stateManager = PlaybackStateManager(context)
 
 
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
         val sessionToken =
             SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
 
         controllerFuture.addListener({
-            val controller = controllerFuture.get()
-            mediaController = controller
+            try {
+                val controller = controllerFuture.get()
+                mediaController = controller
 
-            isPlaying = controller.isPlaying
-            duration = controller.duration.coerceAtLeast(0L)
+                isPlaying = controller.isPlaying
+                duration = controller.duration.coerceAtLeast(0L)
 
-            controller.addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(playing: Boolean) {
-                    isPlaying = playing
-                }
+                controller.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(playing: Boolean) {
+                        isPlaying = playing
+                    }
 
-                override fun onEvents(player: Player, events: Player.Events) {
-                    duration = player.duration.coerceAtLeast(0L)
+                    override fun onEvents(player: Player, events: Player.Events) {
+                        duration = player.duration.coerceAtLeast(0L)
 
-                }
-            })
+                    }
+                })
+            } catch (e: Exception) {
+                Log.e("MiniPlayerControls", "Error getting MediaController", e)
+            }
         }, MoreExecutors.directExecutor())
+
+        onDispose {
+            MediaController.releaseFuture(controllerFuture)
+            mediaController = null
+        }
     }
 
     LaunchedEffect(isPlaying) {
@@ -295,7 +306,10 @@ fun MiniPlayerControls() {
 @OptIn(UnstableApi::class)
 @ExperimentalGlideComposeApi
 @Composable
-fun AudioPlayer(episodeOBJ: Episode,
+fun AudioPlayer(
+    New_POD: Boolean = false,
+
+    episodeOBJ: Episode,
 //    audioUrl: String, // This acts as a fallback or "new play" target
 //    creator: String,
 //    title: String,
@@ -316,6 +330,7 @@ fun AudioPlayer(episodeOBJ: Episode,
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
+    var isloading by remember { mutableStateOf(true) }
 
     // Slider State
     var isDragging by remember { mutableStateOf(false) }
@@ -323,6 +338,105 @@ fun AudioPlayer(episodeOBJ: Episode,
 
     // Save state when leaving this screen
     DisposableEffect(Unit) {
+        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+
+        controllerFuture.addListener({
+            try {
+                val controller = controllerFuture.get()
+                mediaController = controller
+                isloading = controller.isLoading
+                // Sync initial state
+                isPlaying = controller.isPlaying
+                duration = controller.duration.coerceAtLeast(0L)
+                playbackSpeed = controller.playbackParameters.speed
+
+
+                if (New_POD) {
+                    // Try to restore playback position from saved state
+                    val playbackStateManager = PlaybackStateManager(context)
+                    Log.d(
+                        "PLAYBACK",
+                        "AudioPlayer: Looking for saved state for URL: ${episodeOBJ.AudioUrl}"
+                    )
+
+                    var savedState = playbackStateManager.getPlaybackState(episodeOBJ.AudioUrl!!)
+
+                    // If not found and URL contains encoded characters, try to find a match
+                    if (savedState == null && episodeOBJ.AudioUrl!!.contains("%")) {
+                        Log.d("PLAYBACK", "URL is encoded, searching for decoded match...")
+                        val decodedUrl = try {
+                            Uri.decode(episodeOBJ.AudioUrl)
+                        } catch (e: Exception) {
+                            Log.d("PLAYBACK", "Error decoding URL: ${e.message}")
+                            episodeOBJ.AudioUrl
+                        }
+                        savedState = playbackStateManager.getPlaybackState(decodedUrl!!)
+                        if (savedState != null) {
+                            Log.d("PLAYBACK", "Found state using decoded URL")
+                        }
+                    }
+
+                    // If still not found, search all states for matching audio URL
+                    if (savedState == null) {
+                        Log.d("PLAYBACK", "Searching all saved states for any match...")
+                        val allStates = playbackStateManager.getAllPlaybackStates()
+                        savedState = allStates.values.firstOrNull {
+                            it.audioUrl == episodeOBJ.AudioUrl ||
+                                    Uri.decode(it.audioUrl) == episodeOBJ.AudioUrl ||
+                                    Uri.decode(it.audioUrl) == Uri.decode(episodeOBJ.AudioUrl)
+                        }
+                        if (savedState != null) {
+                            Log.d("PLAYBACK", "Found matching state in all states")
+                        }
+                    }
+
+                    if (savedState != null) {
+                        Log.d(
+                            "PLAYBACK",
+                            "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms"
+                        )
+                        // Only restore if the saved position is reasonable (not at the very end)
+                        if (savedState.currentPosition > 0 && savedState.currentPosition < savedState.duration * 0.95) {
+                            Log.e("STATECONTROLLER", controller.currentMediaItem?.mediaId ?: "")
+                            Log.e("STATESAVED", savedState.audioUrl ?: "")
+
+        //                    if (savedState.currentPosition > controller.currentPosition) {
+                                controller.seekTo(savedState.currentPosition)
+                                Log.d(
+                                    "PLAYBACK",
+                                    "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms"
+                                )
+        //                    }
+                        } else {
+                            Log.d(
+                                "PLAYBACK",
+                                "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms"
+                            )
+                        }
+                    } else {
+                        Log.d("PLAYBACK", "✗ No saved state found for: ${episodeOBJ.AudioUrl}")
+                    }
+                }
+
+
+                // Setup a listener to update the UI in real-time
+                controller.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(playing: Boolean) {
+                        isPlaying = playing
+                    }
+                    override fun onPlaybackParametersChanged(params: PlaybackParameters) {
+                        playbackSpeed = params.speed
+                    }
+                    override fun onEvents(player: Player, events: Player.Events) {
+                        duration = player.duration.coerceAtLeast(0L)
+                    }
+                })
+            } catch (e: Exception) {
+                Log.e("AudioPlayer", "Error getting MediaController", e)
+            }
+        }, MoreExecutors.directExecutor())
+
         onDispose {
             // Save current playback state when navigating away
             mediaController?.let { controller ->
@@ -342,84 +456,9 @@ fun AudioPlayer(episodeOBJ: Episode,
                     Log.d("PLAYBACK", "PlayPod dispose: Saved state on navigate away with speed: ${playbackSpeed}x")
                 }
             }
+            MediaController.releaseFuture(controllerFuture)
+            mediaController = null
         }
-    }
-
-    // 1. Setup the connection to the persistent service
-    LaunchedEffect(Unit) {
-        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-
-        controllerFuture.addListener({
-            val controller = controllerFuture.get()
-            mediaController = controller
-
-            // Sync initial state
-            isPlaying = controller.isPlaying
-            duration = controller.duration.coerceAtLeast(0L)
-            playbackSpeed = controller.playbackParameters.speed
-
-            // Try to restore playback position from saved state
-            val playbackStateManager = PlaybackStateManager(context)
-            Log.d("PLAYBACK", "AudioPlayer: Looking for saved state for URL: ${episodeOBJ.AudioUrl}")
-
-            var savedState = playbackStateManager.getPlaybackState(episodeOBJ.AudioUrl!!)
-
-            // If not found and URL contains encoded characters, try to find a match
-            if (savedState == null && episodeOBJ.AudioUrl!!.contains("%")) {
-                Log.d("PLAYBACK", "URL is encoded, searching for decoded match...")
-                val decodedUrl = try {
-                    Uri.decode(episodeOBJ.AudioUrl)
-                } catch (e: Exception) {
-                    Log.d("PLAYBACK", "Error decoding URL: ${e.message}")
-                    episodeOBJ.AudioUrl
-                }
-                savedState = playbackStateManager.getPlaybackState(decodedUrl!!)
-                if (savedState != null) {
-                    Log.d("PLAYBACK", "Found state using decoded URL")
-                }
-            }
-
-            // If still not found, search all states for matching audio URL
-            if (savedState == null) {
-                Log.d("PLAYBACK", "Searching all saved states for any match...")
-                val allStates = playbackStateManager.getAllPlaybackStates()
-                savedState = allStates.values.firstOrNull {
-                    it.audioUrl == episodeOBJ.AudioUrl ||
-                    Uri.decode(it.audioUrl) == episodeOBJ.AudioUrl ||
-                    Uri.decode(it.audioUrl) == Uri.decode(episodeOBJ.AudioUrl)
-                }
-                if (savedState != null) {
-                    Log.d("PLAYBACK", "Found matching state in all states")
-                }
-            }
-
-            if (savedState != null) {
-                Log.d("PLAYBACK", "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms")
-                // Only restore if the saved position is reasonable (not at the very end)
-                if (savedState.currentPosition > 0 && savedState.currentPosition < savedState.duration * 0.95) {
-                    controller.seekTo(savedState.currentPosition)
-                    Log.d("PLAYBACK", "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms")
-                } else {
-                    Log.d("PLAYBACK", "✗ Skipped restore - position unreasonable: ${savedState.currentPosition}ms / ${savedState.duration}ms")
-                }
-            } else {
-                Log.d("PLAYBACK", "✗ No saved state found for: ${episodeOBJ.AudioUrl}")
-            }
-
-            // Setup a listener to update the UI in real-time
-            controller.addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(playing: Boolean) {
-                    isPlaying = playing
-                }
-                override fun onPlaybackParametersChanged(params: PlaybackParameters) {
-                    playbackSpeed = params.speed
-                }
-                override fun onEvents(player: Player, events: Player.Events) {
-                    duration = player.duration.coerceAtLeast(0L)
-                }
-            })
-        }, MoreExecutors.directExecutor())
     }
 
     // 2. The Progress Ticker (Updates every second)
@@ -510,7 +549,9 @@ fun AudioPlayer(episodeOBJ: Episode,
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(16.dp)),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Inside,
+                loading = placeholder(R.drawable.confused_chive),
+                failure = placeholder(R.drawable.sad_chive)
             )
         }
 
@@ -519,7 +560,7 @@ fun AudioPlayer(episodeOBJ: Episode,
         // --- Info ---
         Text(
             text = episodeOBJ.EpisodeName?:"Hydration Error",
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -575,7 +616,7 @@ fun AudioPlayer(episodeOBJ: Episode,
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { mediaController?.seekBack() }, modifier = Modifier.size(48.dp)) {
-                Icon(painterResource(R.drawable.replay_10_24px), null, tint = Color.White, modifier = Modifier.size(28.dp))
+                Icon(painterResource(R.drawable.replay_10_24px), null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(32.dp))
             }
 
             // Big Play/Pause Button
@@ -590,17 +631,21 @@ fun AudioPlayer(episodeOBJ: Episode,
                 modifier = Modifier.size(64.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painter = painterResource(if (isPlaying) R.drawable.outline_pause_24 else R.drawable.play_arrow_24px),
-                        contentDescription = null,
-                        modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    if (mediaController?.isLoading?:false) {
+                        AnimatedChive(isLoading = mediaController?.isLoading?:true)
+                    } else {
+                        Icon(
+                            painter = painterResource(if (isPlaying) R.drawable.outline_pause_24 else R.drawable.play_arrow_24px),
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
             }
 
             IconButton(onClick = { mediaController?.seekForward() }, modifier = Modifier.size(48.dp)) {
-                Icon(painterResource(R.drawable.outline_forward_30_24), null, tint = Color.White, modifier = Modifier.size(28.dp))
+                Icon(painterResource(R.drawable.outline_forward_30_24), null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(32.dp))
             }
         }
 
@@ -608,7 +653,8 @@ fun AudioPlayer(episodeOBJ: Episode,
 
         // --- Speed Controls ---
         Surface(
-            color = Color(0xFF1E1E1E),
+            color = MaterialTheme.colorScheme.tertiary
+            ,
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.padding(bottom = 16.dp, start = 24.dp, end = 24.dp)
         ) {
@@ -636,7 +682,7 @@ fun AudioPlayer(episodeOBJ: Episode,
                         .size(40.dp)
                         .border(
                             width = 2.dp,
-                            color = if (isDecreasePressed) Color.White else Color.Transparent,
+                            color = if (isDecreasePressed) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.tertiary,
                             shape = CircleShape
                         )
                 ) {
@@ -647,7 +693,7 @@ fun AudioPlayer(episodeOBJ: Episode,
                         Icon(
                             Icons.Filled.ArrowDownward,
                             null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onTertiary,
                             modifier = Modifier
                                 .align(Alignment.Center)
                                 .pointerInput(Unit) {
@@ -690,7 +736,7 @@ fun AudioPlayer(episodeOBJ: Episode,
                         .padding(horizontal = 16.dp)
                         .clickable { mediaController?.setPlaybackSpeed(1.0f) }
                 ) {
-                    Text("SPEED", color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+                    Text("SPEED", color = MaterialTheme.colorScheme.onTertiary, style = MaterialTheme.typography.labelSmall)
                     Text(String.format(Locale.US, "%.2fx", playbackSpeed), color = Color.White, fontWeight = FontWeight.Bold)
                 }
 
@@ -759,112 +805,7 @@ fun AudioPlayer(episodeOBJ: Episode,
             }
         }
 
-        // --- Description & Transcript Section ---
-//        var episodeDescription by remember { mutableStateOf<String?>(null) }
-//        var episodeTranscript by remember { mutableStateOf<String?>(null) }
-//        var isLoadingDetails by remember { mutableStateOf(false) }
 
-//        // Try to fetch episode details from the currently playing media item
-//        LaunchedEffect(mediaController?.currentMediaItem?.mediaId) {
-//            val currentMediaItem = mediaController?.currentMediaItem
-//            if (currentMediaItem != null) {
-//                // Check if we can extract directory from audioUrl to fetch episode data
-//                val mediaId = currentMediaItem.mediaId
-//
-//                // If it's from our server (contains pod-chive.com), try to fetch details
-//                if (mediaId.contains("pod-chive.com")) {
-//                    isLoadingDetails = true
-//                    try {
-//                        // Extract directory from URL like https://pod-chive.com/PodcastName/episode.mp3
-//                        val urlParts = mediaId.split("/")
-//                        if (urlParts.size >= 4) {
-//                            val directory = urlParts[3]
-//
-//                            // Fetch podcast details
-//                            val podcastData = com.pod_chive.android.api.RetrofitClientFront.getInstance(context)
-//                                .getPodDetails(directory)
-//
-//                            // Find matching episode by audio file path
-//                            val matchingEpisode = podcastData.episodes?.find { episode ->
-//                                mediaId.endsWith(episode.audioFilePath)
-//                            }
-//
-//                            episodeDescription = matchingEpisode?.description
-//                            // Note: transcript would need to be added to Episode data class
-//                            // For now, we'll show a placeholder
-//                        }
-//                    } catch (e: Exception) {
-//                        android.util.Log.e("PLAYPOD", "Error fetching episode details: ${e.message}")
-//                    } finally {
-//                        isLoadingDetails = false
-//                    }
-//                }
-//            }
-//        }
-
-//        // Show description if available
-//        if (!desc.isNullOrBlank()) {
-//            Spacer(modifier = Modifier.height(24.dp))
-//
-//            Surface(
-//                color = Color(0xFF1E1E1E),
-//                shape = RoundedCornerShape(12.dp),
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(horizontal = 24.dp)
-//            ) {
-//                Column(
-//                    modifier = Modifier.padding(16.dp)
-//                ) {
-//                    Text(
-//                        text = "Description",
-//                        color = MaterialTheme.colorScheme.primary,
-//                        style = MaterialTheme.typography.titleMedium,
-//                        fontWeight = FontWeight.Bold
-//                    )
-//                    Spacer(modifier = Modifier.height(8.dp))
-//
-//                    // Use HtmlText composable from home.kt
-//                    HtmlText(
-//                        html = desc,
-//                        modifier = Modifier.fillMaxWidth()
-//                    )
-//                }
-//            }
-//        }
-//
-//        // Transcript section (placeholder for future implementation)
-//        if (!transcript.isNullOrBlank()) {
-//            Spacer(modifier = Modifier.height(16.dp))
-//
-//            Surface(
-//                color = Color(0xFF1E1E1E),
-//                shape = RoundedCornerShape(12.dp),
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(horizontal = 24.dp)
-//            ) {
-//                Column(
-//                    modifier = Modifier.padding(16.dp)
-//                ) {
-//                    Text(
-//                        text = "Transcript",
-//                        color = MaterialTheme.colorScheme.primary,
-//                        style = MaterialTheme.typography.titleMedium,
-//                        fontWeight = FontWeight.Bold
-//                    )
-//                    Spacer(modifier = Modifier.height(8.dp))
-//                    Text(
-//                        text = transcript,
-//                        color = MaterialTheme.colorScheme.onSurface,
-//                        style = MaterialTheme.typography.bodyMedium
-//                    )
-//                }
-//            }
-//        }
-//
-//        // Bottom padding
-//        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

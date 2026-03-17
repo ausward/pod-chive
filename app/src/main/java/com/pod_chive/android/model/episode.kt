@@ -3,6 +3,7 @@ package com.pod_chive.android.model
 import android.net.Uri
 import android.os.Bundle
 import androidx.navigation.NavType
+import com.google.gson.annotations.SerializedName
 import com.pod_chive.android.ui.components.Information
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -133,7 +134,10 @@ open class Episode {
 open class PodcastShow{
     var PodcastName: String? = null
     var isRSS: Boolean = false
-    var PodcastUrl: String? = null
+    
+    @SerializedName("PodcastUrl_Base")
+    open var PodcastUrl: String? = null
+
     var Cover_Image: String? = null
     @Transient
     var EpisodeList:Array<Episode> = emptyArray()
@@ -159,9 +163,9 @@ open class PodcastShow{
         this.PodcastName = PodcastName
     }
 
-    constructor(PodcastName: String, audio_location: String, Cover_Image: String, output_directory: String?, isRSS: Boolean, description: String?, creator: String?){
+    constructor(PodcastName: String, PodcastURl: String, Cover_Image: String, output_directory: String?, isRSS: Boolean, description: String?, creator: String?){
         this.PodcastName = PodcastName
-        this.PodcastUrl = PodcastUrl
+        this.PodcastUrl = PodcastURl
         this.Cover_Image = Cover_Image
         this.outputDirectory = output_directory!!
         this.isRSS = isRSS
@@ -175,7 +179,7 @@ open class PodcastShow{
         this.PodcastName = PodcastName
         this.showDescription = description
         this.PodcastUrl = url
-        this.outputDirectory = output_directory!!
+        this.outputDirectory = output_directory
         this.Cover_Image = imageUrl
     }
 
