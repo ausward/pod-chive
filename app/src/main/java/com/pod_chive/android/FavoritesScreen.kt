@@ -1,9 +1,14 @@
 package com.pod_chive.android
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +26,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -30,8 +37,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,7 +50,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
@@ -49,19 +57,26 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
+import com.pod_chive.android.api.EpisodeDC
 import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
 import com.pod_chive.android.model.PodcastShow
+import com.pod_chive.android.notif.PodchiveNotificationManager
 import com.pod_chive.android.ui.components.LoadingIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 
-@OptIn(ExperimentalGlideComposeApi::class)
+@OptIn(ExperimentalGlideComposeApi::class, ExperimentalPermissionsApi::class)
 @Composable
 fun FavoritesScreen(navController: NavController) {
     val context = LocalContext.current
@@ -80,6 +95,13 @@ fun FavoritesScreen(navController: NavController) {
         }
         isLoading = false
     }
+
+    val permissionState = rememberPermissionState(
+        permission = Manifest.permission.POST_NOTIFICATIONS)
+
+
+
+
 
     Column(
         modifier = Modifier
@@ -128,7 +150,18 @@ fun FavoritesScreen(navController: NavController) {
             thickness = 1.dp,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+        if (ActivityCompat.checkSelfPermission(
+                LocalContext.current,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            NotificationPermissionHandler()
+            return
+        } else{
+            var notificationManager = PodchiveNotificationManager(context)
+            notificationManager.notifyNewEpisode(FavoritePodcast(0, "","","","TEST"), EpisodeDC("","", "https://pod-chive.com/Darknet_Diaries/100_NSO.mp3","", "","Darknet_Diaries","https://pod-chive.com/Darknet_Diaries/cover.webp"))
 
+        }
         when {
             isLoading -> {
                 LoadingIndicator()
@@ -151,17 +184,29 @@ fun FavoritesScreen(navController: NavController) {
                     }
                 }
             }
+
+
+
             isGridView -> {
+
+
+
+
+
+
+
+
                 var gridsize = max(((LocalWindowInfo.current.containerDpSize.width / 150.dp).toInt()),3)
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(gridsize),
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+                    contentPadding = PaddingValues(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(favorites) { favorite ->
+
                         FavoritePodcastGridItem(
                             favorite = favorite,
                             navController = navController,
@@ -195,6 +240,65 @@ fun FavoritesScreen(navController: NavController) {
     }
 }
 
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun NotificationPermissionHandler() {
+    // Notification permission is only required for Android 13 (Tiramisu) and above
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val permissionState = rememberPermissionState(
+            permission = Manifest.permission.POST_NOTIFICATIONS
+        )
+
+        if (!permissionState.status.isGranted) {
+            if (permissionState.status.shouldShowRationale) {
+                // Show a custom UI explaining WHY you need notifications
+                // before calling launchPermissionRequest()
+                RationaleDialog(
+                    onConfirm = { permissionState.launchPermissionRequest() },
+                    onDismiss = { }
+                )
+            } else {
+                // Request the permission directly
+                SideEffect {
+                    permissionState.launchPermissionRequest()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RationaleDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "Stay in the loop")
+        },
+        text = {
+            Text(
+                "We use notifications to keep you updated on your task progress " +
+                        "and send important alerts. Would you like to turn them on?"
+            )
+        },
+        icon = {
+            Icon(Icons.Default.Notifications, contentDescription = null)
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Allow")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Not Now")
+            }
+        }
+    )
+}
 private fun navigateToFavorite(navController: NavController, favorite: FavoritePodcast) {
     if (!favorite.feedLink.contains("pod-chive.com")) {
         try {

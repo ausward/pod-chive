@@ -44,6 +44,7 @@ import com.pod_chive.android.queue.PlayQueueManager
 import com.pod_chive.android.ui.components.Details
 import com.pod_chive.android.ui.components.Information
 import com.pod_chive.android.ui.theme.PodchiveTheme
+import com.pod_chive.android.work.FavoriteEpisodesSyncScheduler
 import kotlin.reflect.typeOf
 
 
@@ -55,7 +56,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
+        FavoriteEpisodesSyncScheduler.schedule(this)
 
         setContent {
             PodchiveTheme {

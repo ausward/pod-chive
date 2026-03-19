@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.foundation.layout)
     implementation(libs.androidx.compose.runtime)
+    implementation(libs.compose.material3)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -76,4 +77,6 @@ dependencies {
     implementation(libs.glide)
 
     implementation(libs.androidx.core.splashscreen)
+
+    implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 }

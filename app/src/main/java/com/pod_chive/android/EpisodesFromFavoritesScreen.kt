@@ -200,8 +200,6 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                                     episode.photo = "https://pod-chive.com/${favorite.feedLink.slice(22..<favorite.feedLink.length - 9)}/cover.webp"
                                     episode.creator = favorite.title
                                     episode.audioFilePath = "${episode.audioFilePath}"
-
-                                    Log.e("epPhoto", episode.photo.toString())
                                     EpisodeWithShowData(
                                         episodeDC = episode,
                                         podcastDirectory = favorite.feedLink.slice(22..<favorite.feedLink.length - 9), //favorite.feedLink,
