@@ -16,6 +16,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +43,7 @@ import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.pod_chive.android.EpisodeRow
 import com.pod_chive.android.HtmlText
 import com.pod_chive.android.PlaybackState
@@ -48,26 +52,39 @@ import com.pod_chive.android.api.EpisodeDC
 import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
 import com.pod_chive.android.model.PodcastShow
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalGlideComposeApi::class)
+@OptIn(ExperimentalGlideComposeApi::class, DelicateCoroutinesApi::class)
 @Composable
-fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navController: NavController, isFav: Boolean){
-    var isFavorite by remember { mutableStateOf(isFav) }
+fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navController: NavController){
+    var isFavorite by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val showStickyTitle = scrollState.value > 320
     val context = LocalContext.current
+    var IsNotificationEnabled by remember { mutableStateOf(false) }
 
+    var repository = FavoritePodcastRepository(context)
+    var favorite: FavoritePodcast? = null // : FavoritePodcast
     var showDialog by remember { mutableStateOf(false) }
-
-    // 2. Calculate dynamic size
-    // Base size is 250dp, it will shrink as scrollState.value increases
     val maxImageSize = 250f
     val minImageSize = 80f
     val currentImageSize = (maxImageSize - (scrollState.value / 2))
         .coerceAtLeast(minImageSize).dp
+
+    LaunchedEffect(Unit) {
+        GlobalScope.launch(Dispatchers.IO) {
+            favorite = repository.getFavoriteByFeedLink(podcastData?.PodcastUrl)
+            if (favorite != null) {
+            isFavorite = true} else {
+                isFavorite = false
+            }
+            IsNotificationEnabled = favorite?.notification ?: false
+
+        }
+    }
 
     if (showDialog) {
         AlertDialog(
@@ -116,7 +133,7 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
                                 500,
                                 500
                             ) // Use a fixed resolution (e.g., your max expected size)
-                            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                            .diskCacheStrategy(DiskCacheStrategy.ALL)
                             .centerCrop() // Ensures the bitmap is filled before being scaled by Compose
                     },
                     modifier = Modifier
@@ -203,7 +220,46 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
+            if (isFavorite) {
+                IconButton(
+                    onClick = {
+                        IsNotificationEnabled = !IsNotificationEnabled
+                        val repository = FavoritePodcastRepository(context)
+                        GlobalScope.launch(Dispatchers.IO) {
+                            val favorite = repository.getFavoriteByFeedLink(podcastData?.PodcastUrl)
+                            Log.e("FAV", "Favorite: $favorite")
+                            if (favorite?.notification == false) {
+                                repository.addNotification(FavoritePodcast(
+                                    feedLink = podcastData?.PodcastUrl ?: "",
+                                    imageLocation = podcastData?.Cover_Image ?: "",
+                                    description = podcastData?.showDescription ?: "",
+                                    title = podcastData?.PodcastName ?: "",
+                                ))
+                            } else {
+                                if (favorite != null) {
+                                    repository.removeNotification(favorite)
+                                }
+                            }
+                        }
 
+                    }){
+                    if (IsNotificationEnabled) {
+                        Icon(
+                            imageVector = Icons.Filled.NotificationsActive,
+                            contentDescription = "Remove Notification",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.NotificationsOff,
+                            contentDescription = "Add Notification",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                }
+
+            }
             IconButton(onClick = {
                     val repository = FavoritePodcastRepository(context)
                     GlobalScope.launch(Dispatchers.IO) {
@@ -225,7 +281,6 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
                                     imageLocation = podcastData?.Cover_Image ?: "",
                                     description = podcastData?.showDescription ?: "",
                                     title = podcastData?.PodcastName ?: "",
-
                                     )
                             )
 
@@ -239,6 +294,7 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
                         tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                     )
                 }
+
 
         }
     }

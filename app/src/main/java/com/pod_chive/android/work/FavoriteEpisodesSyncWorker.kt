@@ -31,10 +31,12 @@ class FavoriteEpisodesSyncJobService : JobService() {
 
     override fun onStartJob(params: JobParameters?): Boolean {
         if (params == null) return false
+        Log.d(TAG, "Job started")
 
         serviceScope.launch {
             try {
                 runSync(applicationContext)
+                Log.d(TAG, "Job finished successfully")
                 jobFinished(params, false)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to sync favorite episodes", e)
@@ -47,6 +49,7 @@ class FavoriteEpisodesSyncJobService : JobService() {
 
     override fun onStopJob(params: JobParameters?): Boolean {
         serviceScope.coroutineContext.cancelChildren()
+        Log.w(TAG, "Job stopped early by system")
         return true
     }
 
@@ -56,9 +59,20 @@ class FavoriteEpisodesSyncJobService : JobService() {
         val stateStore = FavoriteEpisodeNotificationStateStore(context)
 
         val favorites = repository.getAllFavorites()
+        Log.d(TAG, "Sync run started. favorites=${favorites.size}")
+        Log.e(TAG, "Favorites: $favorites")
+
+
+        val allNewEpisodes = mutableListOf<NewEpisodeDetected>()
         favorites.forEach { favorite ->
-            processFavorite(context, favorite, notifier, stateStore)
+            if (favorite.notification) {
+
+                val newForFavorite = processFavorite(context, favorite, notifier, stateStore)
+                allNewEpisodes.addAll(newForFavorite)
+            }
         }
+
+
     }
 
     private suspend fun processFavorite(
@@ -66,52 +80,77 @@ class FavoriteEpisodesSyncJobService : JobService() {
         favorite: FavoritePodcast,
         notifier: PodchiveNotificationManager,
         stateStore: FavoriteEpisodeNotificationStateStore
-    ) {
+    ): List<NewEpisodeDetected> {
+        Log.d(TAG, "Checking favorite: title=${favorite.title}, feed=${favorite.feedLink}")
         val episodes = fetchEpisodesForFavorite(context, favorite)
             .sortedByDescending { parseEpisodeTimeMillis(it.pubDate) }
 
-        if (episodes.isEmpty()) return
+        if (episodes.isEmpty()) {
+            Log.d(TAG, "No episodes found for favorite: ${favorite.title}")
+            return emptyList()
+        }
 
         val newestEpisodeId = episodeIdentity(episodes.first())
         val lastNotifiedEpisodeId = stateStore.getLastNotifiedEpisodeId(favorite.feedLink)
+        Log.d(
+            TAG,
+            "State for ${favorite.title}: newest=$newestEpisodeId, lastNotified=${lastNotifiedEpisodeId ?: "none"}"
+        )
 
         if (lastNotifiedEpisodeId == null) {
             // First run baseline: track newest without spamming old episodes.
             stateStore.setLastNotifiedEpisodeId(favorite.feedLink, newestEpisodeId)
-            return
+            Log.d(TAG, "Baseline set for ${favorite.title}; no notifications on first observation")
+            return emptyList()
         }
 
-        if (lastNotifiedEpisodeId == newestEpisodeId) return
+        if (lastNotifiedEpisodeId == newestEpisodeId) {
+            Log.d(TAG, "No new episodes for ${favorite.title}")
+            return emptyList()
+        }
 
         val unseenEpisodes = episodes.takeWhile { episodeIdentity(it) != lastNotifiedEpisodeId }
         if (unseenEpisodes.isEmpty()) {
             stateStore.setLastNotifiedEpisodeId(favorite.feedLink, newestEpisodeId)
-            return
+            Log.d(TAG, "State corrected for ${favorite.title}; unseen list resolved to empty")
+            return emptyList()
         }
 
+        val detected = mutableListOf<NewEpisodeDetected>()
         unseenEpisodes
             .asReversed()
             .forEach { episode ->
+                Log.d(TAG, "New episode found for ${favorite.title}: ${episode.title}")
                 if (ActivityCompat.checkSelfPermission(
                         this,
                         Manifest.permission.POST_NOTIFICATIONS
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
-                    return
+
                 }
                 notifier.notifyNewEpisode(favorite, episode)
+                detected.add(
+                    NewEpisodeDetected(
+                        podcastTitle = favorite.title,
+                        episodeTitle = episode.title
+                    )
+                )
             }
 
         stateStore.setLastNotifiedEpisodeId(favorite.feedLink, newestEpisodeId)
+        Log.d(TAG, "Saved latest notified marker for ${favorite.title}")
+        return detected
     }
 
     private suspend fun fetchEpisodesForFavorite(context: Context, favorite: FavoritePodcast): List<EpisodeDC> {
         return try {
             if (favorite.feedLink.contains("pod-chive.com")) {
+                Log.d(TAG, "Fetching pod-chive feed for ${favorite.title}")
                 val directory = extractDirectoryFromFeedUrl(favorite.feedLink) ?: return emptyList()
                 val response = RetrofitClientFront
                     .getInstance(context)
                     .getPodDetails(directory)
+                Log.d(TAG, "Fetched ${response.episodeDCS.size} episodes from pod-chive for ${favorite.title}")
                 response.episodeDCS.onEach { episode ->
                     if (episode.creator.isNullOrBlank()) {
                         episode.creator = favorite.title
@@ -121,8 +160,13 @@ class FavoriteEpisodesSyncJobService : JobService() {
                     }
                 }
             } else {
+                Log.d(TAG, "Fetching RSS feed for ${favorite.title}")
                 when (val parsed = RssDataSource.parseRssFeed(favorite.feedLink)) {
-                    is RssFeedResult.Success -> parsed.episodeDCS ?: emptyList()
+                    is RssFeedResult.Success -> {
+                        val count = parsed.episodeDCS?.size ?: 0
+                        Log.d(TAG, "Fetched $count RSS episodes for ${favorite.title}")
+                        parsed.episodeDCS ?: emptyList()
+                    }
                     is RssFeedResult.Error -> {
                         Log.w(TAG, "RSS parse error for ${favorite.feedLink}: ${parsed.message}")
                         emptyList()
@@ -173,6 +217,11 @@ class FavoriteEpisodesSyncJobService : JobService() {
         private const val TAG = "FavoriteSyncJobService"
     }
 }
+
+private data class NewEpisodeDetected(
+    val podcastTitle: String,
+    val episodeTitle: String
+)
 
 private class FavoriteEpisodeNotificationStateStore(context: Context) {
     private val prefs = context.getSharedPreferences("favorite_episode_notification_state", Context.MODE_PRIVATE)

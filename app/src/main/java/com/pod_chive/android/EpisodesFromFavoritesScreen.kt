@@ -150,12 +150,6 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                 isLoading = false
                 return@LaunchedEffect
             }
-
-            for (favorite in favorites) {
-                Log.d("FavoriteEpisodes", "Favorite: ${favorite.toString()}")
-            }
-
-
             val favoritesSignature = buildFavoritesSignature(favorites)
             val cachedEpisodes = withContext(Dispatchers.IO) {
                 pageCache.load(favoritesSignature = favoritesSignature, ttlMs = 20 * 60 * 1000)
@@ -199,7 +193,7 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                                 podcastData.episodeDCS.map { episode ->
                                     episode.photo = "https://pod-chive.com/${favorite.feedLink.slice(22..<favorite.feedLink.length - 9)}/cover.webp"
                                     episode.creator = favorite.title
-                                    episode.audioFilePath = "${episode.audioFilePath}"
+                                    episode.audioFilePath = episode.audioFilePath
                                     EpisodeWithShowData(
                                         episodeDC = episode,
                                         podcastDirectory = favorite.feedLink.slice(22..<favorite.feedLink.length - 9), //favorite.feedLink,

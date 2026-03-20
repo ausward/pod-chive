@@ -5,9 +5,7 @@ import android.content.ComponentName
 import android.net.Uri
 import android.text.method.LinkMovementMethod
 import android.util.Log
-import android.view.WindowMetrics
 import android.widget.TextView
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -39,7 +36,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,14 +53,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.platform.WindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import androidx.core.text.HtmlCompat
 import androidx.media3.common.MediaItem
@@ -85,11 +78,9 @@ import com.pod_chive.android.model.Episode
 import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayBackProgressVis
-import com.pod_chive.android.ui.components.AnimatedChive
 import com.pod_chive.android.ui.components.LoadingIndicator
 import com.pod_chive.android.ui.components.SadChive
 import com.pod_chive.android.ui.components.ShowPodPage
-import com.pod_chive.android.ui.theme.PodchiveTheme
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -111,10 +102,7 @@ fun HomePage(navController: NavController ) {
         isloading = true
         try {
             val res = RetrofitClient.getInstance(context = context ).listPodcasts()
-
             podcasts = ArrayList(res.podcasts)
-
-            Log.d("PODCASTS", podcasts.toString())
         } catch (e: Exception) {
             error = e.message.toString()
         } finally {
@@ -140,11 +128,6 @@ fun HomePage(navController: NavController ) {
         }}
         if (isloading) {
            LoadingIndicator()
-//            Text(
-//                text = "Loading...",
-//                style = MaterialTheme.typography.titleLarge,
-//                color = Color.Red
-//            )
         } else if (error != "") {
             Text(
                 text = error,
@@ -242,14 +225,12 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
     var podcastData by remember { mutableStateOf<PodcastDetailResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isFavorite by remember { mutableStateOf(false) }
+    var isNotif by remember { mutableStateOf(false) }
 
     LaunchedEffect(directory) {
         try {
             podcastData = RetrofitClientFront.getInstance(context).getPodDetails(directory)
             podcastData!!.placeCreatorData()
-            // Check if it's already favorited
-            val repository = com.pod_chive.android.database.FavoritePodcastRepository(context)
-            isFavorite = repository.isFavorite(directory)
         } catch (e: Exception) {
             Log.e("ShowPodDetsFromMainServer", "Error fetching podcast details", e)
             // Handle error
@@ -257,42 +238,11 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
             isLoading = false
         }
     }
-
-
-//    if (showShowDesc) {
-//        AlertDialog(
-//            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface),
-//            onDismissRequest = { showShowDesc = false },
-//            confirmButton = {
-//                TextButton(onClick = { showShowDesc = false }) {
-//                    Text("Close")
-//                }
-//            },
-//            title = {
-//                Text(
-//                    text = podcastData?.podcastTitle ?: "",
-//                    style = MaterialTheme.typography.titleLarge
-//                )
-//            },
-//            text = {
-//                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-//                    HtmlText(
-//                        html = podcastData?.podcastDescription ?: "No description available."
-//                    )
-//                }
-//            },
-//            containerColor = MaterialTheme.colorScheme.surface,
-//            titleContentColor = MaterialTheme.colorScheme.onSurface,
-//            textContentColor = MaterialTheme.colorScheme.onSurface,
-//            properties = androidx.compose.ui.window.DialogProperties(true, true,true)
-//        )
-//
-//    }
     if (isLoading) {
         LoadingIndicator()
    } else {
        val podcastShow = PodcastShow(podcastData?.podcastTitle?:"", podcastData?.podcastDescription, "https://pod-chive.com/$directory/out.json", directory, "https://pod-chive.com/$directory/cover.webp" )
-        ShowPodPage(podcastShow,podcastData?.episodeDCS, navController = navController, isFavorite)
+        ShowPodPage(podcastShow,podcastData?.episodeDCS, navController = navController)
     }
 }
 
@@ -322,11 +272,6 @@ fun EpisodeRow(
         audioUrl = episodeDC.audioFilePath
         photoUrl = episodeDC.PhotoUrl?:episodeDC.photo?:"https://pod-chive.com/cover.webp"
     }
-//    Log.e("PHOTOURL", photoUrl)
-//    Log.e("AUDIOURL", audioUrl)
-
-//    val context = LocalContext.current
-//    val stateManager = remember { PlaybackStateManager(context) }
     var playbackStates by remember { mutableStateOf<Map<String, com.pod_chive.android.playback.PlaybackState>>(emptyMap()) }
     var state :  com.pod_chive.android.playback.PlaybackState
 

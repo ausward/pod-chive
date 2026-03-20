@@ -16,8 +16,8 @@ object FavoriteEpisodesSyncScheduler {
         val jobInfo = JobInfo.Builder(JOB_ID, componentName)
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
             .setPersisted(true)
-            .setPeriodic(2L)
-//            .setPeriodic(60 * 60 * 1000L)
+//            .setPeriodic(6000L)
+            .setPeriodic(15 * 60 * 1000L)
             .build()
 
         scheduler.schedule(jobInfo)

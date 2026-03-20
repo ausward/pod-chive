@@ -44,7 +44,6 @@ import com.pod_chive.android.api.Podcast
 import com.pod_chive.android.api.RetrofitClient
 import com.pod_chive.android.api.RssDataSource
 import com.pod_chive.android.api.RssFeedResult
-import com.pod_chive.android.database.FavoritePodcastRepository
 import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.ui.components.LoadingIndicator
 import com.pod_chive.android.ui.components.ShowPodPage
@@ -293,6 +292,8 @@ fun ShowPodDetsFromRSS(homeitems: PodcastShow, navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var searchResults by remember { mutableStateOf<SearchResultType>(SearchResultType.Empty) }
     var isFavorite by remember { mutableStateOf(false) }
+    var IsNotificationEnabled by remember { mutableStateOf(false) }
+
     LaunchedEffect(homeitems) {
         try {
 
@@ -310,8 +311,6 @@ fun ShowPodDetsFromRSS(homeitems: PodcastShow, navController: NavController) {
                         "Search",
                         "result: ${result.podcast.PodcastName} ${result.episodeDCS?.size} ${podcastData?.PodcastUrl}"
                     )
-                    val repository = FavoritePodcastRepository(context)
-                    isFavorite = repository.isFavorite(podcastData?.PodcastUrl)
                     if (!result.episodeDCS.isNullOrEmpty()) {
                         Log.d("PodchiveAPI", "Episodes: ${result.episodeDCS.size}")
                         searchResults =
@@ -321,6 +320,7 @@ fun ShowPodDetsFromRSS(homeitems: PodcastShow, navController: NavController) {
                         Log.d("PodchiveAPI", "No episodes found: ${result}")
                         // If no episodes, just show the podcast summary
                         searchResults = SearchResultType.Podcasts(arrayListOf(result.podcast))
+
                     }
                 }
 
@@ -335,6 +335,6 @@ fun ShowPodDetsFromRSS(homeitems: PodcastShow, navController: NavController) {
     if (isLoading) {
         LoadingIndicator()
     } else {
-        ShowPodPage(podcastData, epData, navController, isFavorite)
+        ShowPodPage(podcastData, epData, navController)
     }
 }

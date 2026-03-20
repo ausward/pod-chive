@@ -1,5 +1,8 @@
 package com.pod_chive.android
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,13 +23,16 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
@@ -39,6 +45,8 @@ import com.pod_chive.android.model.Episode
 import com.pod_chive.android.model.EpisodeNavType
 import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.model.playEpisode
+import com.pod_chive.android.notif.NotificationPermissionHandler
+import com.pod_chive.android.notif.PodchiveNotificationManager
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayQueueManager
 import com.pod_chive.android.ui.components.Details
@@ -50,6 +58,7 @@ import kotlin.reflect.typeOf
 
 class MainActivity : ComponentActivity() {
 
+    private var notificationEpisodeToPlay by mutableStateOf<Episode?>(null)
 
     @OptIn(ExperimentalGlideComposeApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,13 +66,35 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         FavoriteEpisodesSyncScheduler.schedule(this)
+        handleNotificationIntent(intent)
+
+
+
 
         setContent {
+            if (ActivityCompat.checkSelfPermission(
+                    LocalContext.current,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                NotificationPermissionHandler()
+
+            }
             PodchiveTheme {
                 // 1. Initialize the NavController here
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
+
+                LaunchedEffect(notificationEpisodeToPlay?.AudioUrl) {
+                    if (notificationEpisodeToPlay?.AudioUrl != null) {
+                        navController.navigate("playpod") {
+                            launchSingleTop = true
+                        }
+                        notificationEpisodeToPlay = null
+                    }
+                }
+
                 var selectedItem by rememberSaveable { mutableIntStateOf(0) }
                 val items = listOf("Home", "Search", "Play", "Favorites")
                 val routes = listOf("home", "search", "playpod", "favorites") // Match these to your NavHost routes
@@ -204,5 +235,37 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        if (intent?.action != PodchiveNotificationManager.ACTION_PLAY_FROM_NOTIFICATION) return
+
+        val audioUrl = intent.getStringExtra(PodchiveNotificationManager.EXTRA_AUDIO_URL) ?: return
+        val title = intent.getStringExtra(PodchiveNotificationManager.EXTRA_EPISODE_TITLE) ?: ""
+        val podcastTitle = intent.getStringExtra(PodchiveNotificationManager.EXTRA_PODCAST_TITLE) ?: ""
+        val imageUrl = intent.getStringExtra(PodchiveNotificationManager.EXTRA_IMAGE_URL) ?: ""
+        val pubDate = intent.getStringExtra(PodchiveNotificationManager.EXTRA_PUB_DATE) ?: ""
+        val description = intent.getStringExtra(PodchiveNotificationManager.EXTRA_DESCRIPTION)
+        val transcriptUrl = intent.getStringExtra(PodchiveNotificationManager.EXTRA_TRANSCRIPT_URL)
+
+        val episode = Episode(audioUrl, title, pubDate, imageUrl).apply {
+            Creator = podcastTitle
+            Description = description
+            TranscriptUrl = transcriptUrl
+            idValue = PlayQueueManager.generateId(audioUrl)
+        }
+
+        val queueManager = PlayQueueManager(this)
+        queueManager.addToQueue(episode)
+        queueManager.moveToTop(episode.idValue ?: PlayQueueManager.generateId(audioUrl))
+        queueManager.setCurrentIndex(0)
+
+        notificationEpisodeToPlay = episode
     }
 }

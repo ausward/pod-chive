@@ -1,9 +1,5 @@
 package com.pod_chive.android
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,9 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ViewAgenda
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -37,10 +31,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,20 +49,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.ActivityCompat
 import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
-import com.google.accompanist.permissions.shouldShowRationale
-import com.pod_chive.android.api.EpisodeDC
 import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
 import com.pod_chive.android.model.PodcastShow
-import com.pod_chive.android.notif.PodchiveNotificationManager
 import com.pod_chive.android.ui.components.LoadingIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -85,22 +71,20 @@ fun FavoritesScreen(navController: NavController) {
     var favorites by remember { mutableStateOf<List<FavoritePodcast>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var gridViewOverride by rememberSaveable { mutableStateOf<Boolean?>(null) }
-
+    var repository: FavoritePodcastRepository
     val isGridView = gridViewOverride ?: isWideDisplay
 
     LaunchedEffect(Unit) {
-        val repository = FavoritePodcastRepository(context)
+        repository = FavoritePodcastRepository(context)
         favorites = withContext(Dispatchers.IO) {
             repository.getAllFavorites()
+
+        }
+        for (favorite in favorites){
+            Log.e("FavoritesScreen", "Favorite: $favorite")
         }
         isLoading = false
     }
-
-    val permissionState = rememberPermissionState(
-        permission = Manifest.permission.POST_NOTIFICATIONS)
-
-
-
 
 
     Column(
@@ -150,18 +134,7 @@ fun FavoritesScreen(navController: NavController) {
             thickness = 1.dp,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
-        if (ActivityCompat.checkSelfPermission(
-                LocalContext.current,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            NotificationPermissionHandler()
-            return
-        } else{
-            var notificationManager = PodchiveNotificationManager(context)
-            notificationManager.notifyNewEpisode(FavoritePodcast(0, "","","","TEST"), EpisodeDC("","", "https://pod-chive.com/Darknet_Diaries/100_NSO.mp3","", "","Darknet_Diaries","https://pod-chive.com/Darknet_Diaries/cover.webp"))
 
-        }
         when {
             isLoading -> {
                 LoadingIndicator()
@@ -189,13 +162,6 @@ fun FavoritesScreen(navController: NavController) {
 
             isGridView -> {
 
-
-
-
-
-
-
-
                 var gridsize = max(((LocalWindowInfo.current.containerDpSize.width / 150.dp).toInt()),3)
 
                 LazyVerticalGrid(
@@ -212,7 +178,8 @@ fun FavoritesScreen(navController: NavController) {
                             navController = navController,
                             onDelete = { deletedFavorite ->
                                 favorites = favorites.filter { it.id != deletedFavorite.id }
-                            }
+                            },
+
                         )
                     }
                 }
@@ -228,6 +195,7 @@ fun FavoritesScreen(navController: NavController) {
                             onDelete = { deletedFavorite ->
                                 favorites = favorites.filter { it.id != deletedFavorite.id }
                             }
+
                         )
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant,
@@ -241,64 +209,6 @@ fun FavoritesScreen(navController: NavController) {
 }
 
 
-@OptIn(ExperimentalPermissionsApi::class)
-@Composable
-fun NotificationPermissionHandler() {
-    // Notification permission is only required for Android 13 (Tiramisu) and above
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        val permissionState = rememberPermissionState(
-            permission = Manifest.permission.POST_NOTIFICATIONS
-        )
-
-        if (!permissionState.status.isGranted) {
-            if (permissionState.status.shouldShowRationale) {
-                // Show a custom UI explaining WHY you need notifications
-                // before calling launchPermissionRequest()
-                RationaleDialog(
-                    onConfirm = { permissionState.launchPermissionRequest() },
-                    onDismiss = { }
-                )
-            } else {
-                // Request the permission directly
-                SideEffect {
-                    permissionState.launchPermissionRequest()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun RationaleDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(text = "Stay in the loop")
-        },
-        text = {
-            Text(
-                "We use notifications to keep you updated on your task progress " +
-                        "and send important alerts. Would you like to turn them on?"
-            )
-        },
-        icon = {
-            Icon(Icons.Default.Notifications, contentDescription = null)
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Allow")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Not Now")
-            }
-        }
-    )
-}
 private fun navigateToFavorite(navController: NavController, favorite: FavoritePodcast) {
     if (!favorite.feedLink.contains("pod-chive.com")) {
         try {
@@ -326,7 +236,8 @@ private fun navigateToFavorite(navController: NavController, favorite: FavoriteP
 fun FavoritePodcastItem(
     favorite: FavoritePodcast,
     navController: NavController,
-    onDelete: (FavoritePodcast) -> Unit
+    onDelete: (FavoritePodcast) -> Unit,
+
 ) {
     Row(
         modifier = Modifier
@@ -376,7 +287,8 @@ fun FavoritePodcastItem(
 fun FavoritePodcastGridItem(
     favorite: FavoritePodcast,
     navController: NavController,
-    onDelete: (FavoritePodcast) -> Unit
+    onDelete: (FavoritePodcast) -> Unit,
+
 ) {
     var photoSize by remember { mutableStateOf(125.dp) }
     var cardSize by remember { mutableStateOf(225.dp) }
