@@ -195,6 +195,7 @@ class MainActivity : ComponentActivity() {
                                val pqm = PlayQueueManager(context = this@MainActivity)
                                 val pstm = PlaybackStateManager(context = this@MainActivity)
                                 val playingObj = pqm.getCurrentItem()
+
                                 if (playingObj != null) {
 //                                    navController.navigate(playingObj.toPlayEpisode())
                                     PlayPod(false,navController, playingObj)
@@ -209,6 +210,7 @@ class MainActivity : ComponentActivity() {
                                         temp?.creator,
                                         temp?.photoUrl
                                     )
+                                    tempOBj.feedLink = temp?.feedLink
                                     PlayPod(false,navController, tempOBj)
 
                                 }else{
@@ -221,9 +223,7 @@ class MainActivity : ComponentActivity() {
                             }
                             composable<playEpisode>(typeMap = mapOf(typeOf<Episode?>() to EpisodeNavType)
                             ) {
-
                                 val temp = it.toRoute<playEpisode>()
-//                                val final = Episode(temp.Title, temp.description, temp.audioFilePath, temp.pubdate?:"", temp.transcript, temp.Creator, temp.PhotoUrl)
                                 PlayPod(true,navController, temp.EpisodeObj!!)
                             }
 //                            composable("debug_playback") {

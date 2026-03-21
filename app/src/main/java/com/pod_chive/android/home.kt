@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -134,7 +135,7 @@ fun HomePage(navController: NavController ) {
                 style = MaterialTheme.typography.titleLarge,
                 color = Color.Red
             )
-            SadChive(Modifier.fillMaxWidth(), Color.Red, true)
+            SadChive(Modifier.fillMaxWidth(), Color.Red, true, navController)
 
         } else {
             if (   grid) {
@@ -220,12 +221,18 @@ fun MainPodGridItem(podcast: homeItem, onItemClick: () -> Unit) {
 
 @OptIn(ExperimentalGlideComposeApi::class, DelicateCoroutinesApi::class)
 @Composable
+        /**
+         * Helper data to show data from pod-chive.com
+         * @param directory String, location of where the data is on pod-chive.com
+         * @param navController NavController
+         * @return Unit
+         * @see RetrofitClientFront.getInstance
+         */
 fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
     val context = LocalContext.current
     var podcastData by remember { mutableStateOf<PodcastDetailResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    var isFavorite by remember { mutableStateOf(false) }
-    var isNotif by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf(true) }
 
     LaunchedEffect(directory) {
         try {
@@ -234,13 +241,16 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
         } catch (e: Exception) {
             Log.e("ShowPodDetsFromMainServer", "Error fetching podcast details", e)
             // Handle error
+            error = true
         } finally {
             isLoading = false
         }
     }
     if (isLoading) {
         LoadingIndicator()
-   } else {
+   } else if (error) {
+        SadChive(Modifier.fillMaxWidth().fillMaxHeight(), Color.Red, true, navController)
+    } else {
        val podcastShow = PodcastShow(podcastData?.podcastTitle?:"", podcastData?.podcastDescription, "https://pod-chive.com/$directory/out.json", directory, "https://pod-chive.com/$directory/cover.webp" )
         ShowPodPage(podcastShow,podcastData?.episodeDCS, navController = navController)
     }
@@ -250,6 +260,15 @@ enum class PlaybackState { PLAYING, PAUSED, STOPPED }
 
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
+        /**
+         * used to show Episode Data in a row
+         * @param episodeDC Episode data
+         * @param directory the location of where the podcast is stored in the cloud
+         * @param navController NavController
+         * @param playbackState PlaybackState
+         * @return Unit
+         *
+         */
 fun EpisodeRow(
     episodeDC: EpisodeDC,
     directory: String? = null,
@@ -257,12 +276,11 @@ fun EpisodeRow(
     playbackState: PlaybackState,
     showPodcastImage: Boolean = false
 ) {
+
     var showDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var controller by remember { mutableStateOf<MediaController?>(null) }
     val stateManager = remember { PlaybackStateManager(context) }
-//    var playbackStates by remember { mutableStateOf<Map<String, PlaybackState>>(emptyMap()) }
-
     var audioUrl = ""
     var photoUrl = ""
     if (directory != "" && directory != null) {
@@ -287,7 +305,9 @@ fun EpisodeRow(
         creator = episodeDC.creator ?: "Unknown",
         photoUrl = photoUrl,
         currentPosition = 0,
-        duration = 0
+        duration = 0,
+        feedLink = episodeDC.feedLink ?: "",
+
     )
 
     DisposableEffect(Unit) {
@@ -332,11 +352,12 @@ fun EpisodeRow(
     }
 
     // Helper function to add to queue
-    val addToQueue: (String, String) -> Unit = { audioUrl, photoUrl ->
+    val addToQueue: (String, String, String) -> Unit = { audioUrl, photoUrl, feedURL ->
         val queueManager = com.pod_chive.android.queue.PlayQueueManager(context)
        episodeDC.idValue = com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl)
         episodeDC.AudioUrl = audioUrl
         episodeDC.PhotoUrl = photoUrl
+        episodeDC.feedLink = feedURL
 
         Log.d("HOME470", episodeDC.toString())
 
@@ -350,12 +371,8 @@ fun EpisodeRow(
     // Helper function to play
     val playEpisode: (Episode) -> Unit = { episodeDC ->
         if (controller != null) {
-            Log.d("LINK", "Clicked play button")
-            Log.d("LINK", "Playing audio URL: $audioUrl")
-
             val player = controller
             if (player != null) {
-                Log.e("LINK", audioUrl ?: "Audio URL is null")
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(audioUrl)
                     .setUri(Uri.parse(audioUrl))
@@ -378,6 +395,7 @@ fun EpisodeRow(
                 episodeDC.AudioUrl = audioUrl
                 episodeDC.PhotoUrl = photoUrl
 
+
                 queueManager.addToQueue(episodeDC)
                 queueManager.moveToTop(com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl))
                 Log.d("QUEUE", "Added and moved to top: ${episodeDC.EpisodeName}")
@@ -385,8 +403,8 @@ fun EpisodeRow(
 
 
                 Log.d("HOME546", episodeDC.MasterToString())
-//                navController.navigate(episodeDC.toPlayEpisode())
-                navController.navigate("playpod")
+                navController.navigate(episodeDC.toPlayEpisode())
+                //navController.navigate("playpod")
             }
         }
     }
@@ -498,10 +516,13 @@ fun EpisodeRow(
                                 episodeDC.pubDate ?: "",
                                 photoUrl
                             )
-
+                        Log.e("HOME500", episodeDC.feedLink.toString())
+                        Temp.feedLink = episodeDC.feedLink
                         Temp.TranscriptUrl = episodeDC.transcript
                         Temp.Creator = episodeDC.creator
                         Temp.Description = episodeDC.description
+
+
                         Log.e("episodeRowPlay", Temp.toString())
                         playEpisode(Temp)
                     },
@@ -518,7 +539,7 @@ fun EpisodeRow(
                 IconButton(
                     onClick = {
 
-                        addToQueue(audioUrl, photoUrl)
+                        addToQueue(audioUrl, photoUrl, directory?:"")
                     },
                     modifier = Modifier.size(48.dp)
                 ) {
@@ -537,6 +558,14 @@ fun EpisodeRow(
 
 
 @Composable
+        /**
+         * Used to show the description data that is often html formatted from the rss xml
+         * @param html String called description in the Episode objs
+         * @param modifier Modifier
+         * @param maxLines Int
+         * @return Unit
+         * @see EpisodeDC.description
+         */
 fun HtmlText(html: String, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) {
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     AndroidView(

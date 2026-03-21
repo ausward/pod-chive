@@ -72,6 +72,7 @@ import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.google.common.util.concurrent.MoreExecutors
 import com.pod_chive.android.model.Episode
+import com.pod_chive.android.model.PodcastShow
 import com.pod_chive.android.playback.PlaybackState
 import com.pod_chive.android.playback.PlaybackStateManager
 import com.pod_chive.android.queue.PlayQueueManager
@@ -90,10 +91,9 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun PlayPod(
     NEW_POD: Boolean = false,
-
-
     navController: NavController,
     episodeOBJ: Episode,
+
 ) {
 
     Log.e("PLAYPOD", episodeOBJ.toString())
@@ -171,6 +171,7 @@ fun PlayPod(
             NEW_POD,
             episodeOBJ,
             navController = navController,
+            feedlink = episodeOBJ.feedLink
 
         )
         // MiniPlayerControls()
@@ -318,6 +319,7 @@ fun AudioPlayer(
 //    desc: String? = null,
 //    transcript: String? = null,
 //    pubdate: String? = null
+    feedlink: String? = null
 ) {
 //    Log.e("DATE" , pubdate.toString())
 
@@ -549,7 +551,7 @@ fun AudioPlayer(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(16.dp)),
-                contentScale = ContentScale.Inside,
+                contentScale = ContentScale.Fit,
                 loading = placeholder(R.drawable.confused_chive),
                 failure = placeholder(R.drawable.sad_chive)
             )
@@ -572,6 +574,19 @@ fun AudioPlayer(
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 4.dp, start = 24.dp, end = 24.dp)
+                .clickable(onClick = {
+
+                    if (episodeOBJ.AudioUrl?.contains("pod-chive", true) ?: false ) {
+                    navController.navigate("details/${episodeOBJ.getDir()}")
+                    } else if (feedlink != "") {
+                        Log.e("FEEDLINk", feedlink.toString())
+                        val temp = PodcastShow(episodeOBJ.Creator?:"", feedlink?:"", episodeOBJ.PhotoUrl?:"",)
+                        navController.navigate(temp)
+                    }
+
+
+
+            })
         )
 
         Spacer(modifier = Modifier.height(12.dp))

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,14 +18,12 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,7 +44,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -173,6 +171,7 @@ fun FavoritesScreen(navController: NavController) {
                 ) {
                     items(favorites) { favorite ->
 
+
                         FavoritePodcastGridItem(
                             favorite = favorite,
                             navController = navController,
@@ -290,41 +289,23 @@ fun FavoritePodcastGridItem(
     onDelete: (FavoritePodcast) -> Unit,
 
 ) {
-    var photoSize by remember { mutableStateOf(125.dp) }
-    var cardSize by remember { mutableStateOf(225.dp) }
 
-    Card(shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.width(photoSize).height(cardSize),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .width(360.dp).height(360.dp)
-                .clip(MaterialTheme.shapes.medium)
-                .clickable { navigateToFavorite(navController, favorite) }
-                .padding(8.dp)
-        ) {
+
+
+    Card(modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardColors(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)) {
+        Column(modifier = Modifier.padding(8.dp).clickable{navigateToFavorite(navController, favorite)} ){
             GlideImage(
                 model = favorite.imageLocation,
-                contentDescription = "Podcast artwork",
-                modifier = Modifier
-                    .width(150.dp)
-                    .height(150.dp)
-                    .clip(MaterialTheme.shapes.large).align(Alignment.CenterHorizontally),
-                loading = placeholder(R.drawable.confused_chive),
-                failure = placeholder(R.drawable.sad_chive),
-                contentScale = ContentScale.Fit
+                contentDescription = "Cover",
+                modifier = Modifier.aspectRatio(1f).clip(MaterialTheme.shapes.medium),
+                loading = placeholder(R.mipmap.shrug)
             )
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, 18.sp),
-                textAlign = TextAlign.Center,
-                text = favorite.title,
+                text = favorite.title ?: "",
                 fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-
+                fontSize = 14.sp,
+                maxLines = 1,
+                modifier = Modifier.padding(top = 4.dp)
             )
         }
     }

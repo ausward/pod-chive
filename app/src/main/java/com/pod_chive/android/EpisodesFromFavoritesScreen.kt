@@ -174,6 +174,8 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                                 when (val result = RssDataSource.parseRssFeed(favorite.feedLink)) {
                                     is RssFeedResult.Success -> {
                                         result.episodeDCS?.map { episode ->
+                                            episode.feedLink = favorite.feedLink
+
                                             EpisodeWithShowData(
                                                 episodeDC = episode,
                                                 podcastDirectory = null,
@@ -194,6 +196,7 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                                     episode.photo = "https://pod-chive.com/${favorite.feedLink.slice(22..<favorite.feedLink.length - 9)}/cover.webp"
                                     episode.creator = favorite.title
                                     episode.audioFilePath = episode.audioFilePath
+                                    episode.feedLink = favorite.feedLink
                                     EpisodeWithShowData(
                                         episodeDC = episode,
                                         podcastDirectory = favorite.feedLink.slice(22..<favorite.feedLink.length - 9), //favorite.feedLink,
@@ -312,8 +315,7 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(episodes) { episodeWithPodcast ->
-
-
+                        Log.d("FavoriteEpisodesLINK", "Episode: ${episodeWithPodcast.episodeDC.feedLink}")
                         EpisodeRow(
                             episodeDC = episodeWithPodcast.episodeDC,
                             directory = episodeWithPodcast.podcastDirectory,
@@ -322,7 +324,9 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                             playbackState = PlaybackState.STOPPED,
 //                            AudioUrl = episodeWithPodcast.episodeDC.audioFilePath,
 //                            PhotoUrl = episodeWithPodcast.episodeDC.photo,
-                            showPodcastImage = true
+                            showPodcastImage = true,
+
+
                         )
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant,

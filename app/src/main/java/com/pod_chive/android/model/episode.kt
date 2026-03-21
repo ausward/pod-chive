@@ -48,6 +48,18 @@ data class playEpisode(
 
 
 @Serializable
+/**
+ * Episode Class
+ * @property AudioUrl
+ * @property EpisodeName
+ * @property PublishDate
+ * @property PhotoUrl
+ * @property Creator
+ * @property Description
+ * @property TranscriptUrl
+ * @property idValue
+ * @property feedLink used for navigation to feed from the playpod Page for RSS feeds
+ */
 open class Episode {
 
     @get:JvmName("getEpisodeAudio")
@@ -76,6 +88,9 @@ open class Episode {
 
 
     var idValue: String? = null
+
+    var feedLink: String? = null
+
 
 
 
@@ -122,11 +137,17 @@ open class Episode {
     }
 
     override fun toString():String{
-        return "Episode(audioUrl=$AudioUrl, episodeName=$EpisodeName, publishDate=$PublishDate, photoUrl=$PhotoUrl, creator=$Creator, description=${Description?.take(5) ?:"null"}, transcriptUrl=$TranscriptUrl, idValue=$idValue, duration=$duration, TranscriptData=${TranscriptData?.take(5) ?:"null"} )"
+        return "Episode(audioUrl=$AudioUrl, episodeName=$EpisodeName, publishDate=$PublishDate, photoUrl=$PhotoUrl, creator=$Creator, description=${Description?.take(5) ?:"null"}, transcriptUrl=$TranscriptUrl, idValue=$idValue, duration=$duration, TranscriptData=${TranscriptData?.take(5) ?:"null"}, feedLink=$feedLink)"
     }
     fun MasterToString():String{return this.toString()}
 
 
+
+    fun getDir():String{
+        return if (this.AudioUrl?.contains("pod-chive",true)?: false) {
+            this.AudioUrl!!.substringAfter(".com/").substringBeforeLast("/").substringAfterLast("/")
+        }else ""
+    }
 
 
 }
@@ -169,7 +190,6 @@ open class PodcastShow{
         this.Cover_Image = Cover_Image
         this.outputDirectory = output_directory!!
         this.isRSS = isRSS
-        this.audio_location = audio_location
         this.showDescription = description
         this.creator = creator
     }

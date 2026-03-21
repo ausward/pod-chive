@@ -155,12 +155,12 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(24.dp))
 
         // --- Episode List ---
         // Since we aren't in a LazyColumn, we use a simple forEach
         epData?.forEach { episode ->
+            episode.feedLink = podcastData?.PodcastUrl
             episode.description
 
 

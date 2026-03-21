@@ -17,7 +17,8 @@ data class PlaybackState(
     val duration: Long,
     val playbackSpeed: Float = 1.0f,
     val lastPlayedAt: Long = System.currentTimeMillis(),
-    val publishDate: String? = null
+    val publishDate: String? = null,
+    val feedLink: String? = null
 )
 
 class PlaybackStateManager(context: Context) {
