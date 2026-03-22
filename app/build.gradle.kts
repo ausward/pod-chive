@@ -83,4 +83,7 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
 
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
+
+
+    androidTestImplementation("tools.fastlane:screengrab:2.1.1")
 }

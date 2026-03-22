@@ -1,0 +1,13 @@
+pod-chive is an open-source podcast player focused on finding and listening to shows from the pod-chive catalog or directly from RSS feeds.
+
+Features:
+- Discover podcasts from the built-in catalog
+- Search podcasts by keyword
+- Open podcasts by RSS URL
+- Queue episodes and control playback speed and seek
+- Save favorite podcasts locally
+- Optional notifications for new episodes from favorites
+- Resume playback from your saved position
+
+Built with Kotlin, Jetpack Compose, and Android Media3.
+
