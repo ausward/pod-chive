@@ -11,10 +11,10 @@ android {
 
     defaultConfig {
         applicationId = "com.pod_chive.android"
-        minSdk = 33
+        minSdk = 30
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -63,9 +63,9 @@ dependencies {
     implementation(libs.compose.material3)
 
     testImplementation(libs.junit)
-    testImplementation("org.robolectric:robolectric:4.12.1")
-    testImplementation("org.mockito:mockito-core:5.7.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
+    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

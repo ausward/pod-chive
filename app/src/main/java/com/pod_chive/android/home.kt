@@ -173,8 +173,8 @@ fun MainPodListExpanderHor(podcast: homeItem, onItemClick: () -> Unit ){
             contentDescription = "Podcast Album Cover",
             modifier = Modifier.width(80.dp).clip(MaterialTheme.shapes.medium)
                 .height(80.dp).align(Alignment.CenterVertically),
-            loading = placeholder(R.mipmap.shrug),
-            failure = placeholder(R.mipmap.shrug),
+            loading = placeholder(R.drawable.confused_chive),
+            failure = placeholder(R.drawable.sad_chive),
 
             )
         Column(modifier = Modifier.padding(horizontal = 8.dp)) {
@@ -205,7 +205,7 @@ fun MainPodGridItem(podcast: homeItem, onItemClick: () -> Unit) {
                 model = photoURL,
                 contentDescription = "Cover",
                 modifier = Modifier.aspectRatio(1f).clip(MaterialTheme.shapes.medium),
-                loading = placeholder(R.mipmap.shrug)
+                loading = placeholder(R.drawable.confused_chive)
             )
             Text(
                 text = podcast.podcast_title ?: "",
@@ -375,7 +375,7 @@ fun EpisodeRow(
             if (player != null) {
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(audioUrl)
-                    .setUri(Uri.parse(audioUrl))
+                    .setUri(audioUrl.toUri())
                     .setMediaMetadata(
                         MediaMetadata.Builder()
                             .setTitle(episodeDC.EpisodeName ?: "")
@@ -453,7 +453,7 @@ fun EpisodeRow(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                val displayDate = episodeDC.pubDate?.let {
+                val displayDate = episodeDC.pubDate.let {
                     if (it.length >= 16) it.substring(0, 16) else it
                 } ?: ""
                 Text(
@@ -502,7 +502,7 @@ fun EpisodeRow(
                         var audioUrl = ""
                         var photoUrl = ""
                         if (directory != null) {
-                            audioUrl = "${episodeDC.audioFilePath}"
+                            audioUrl = episodeDC.audioFilePath
                             photoUrl = "https://pod-chive.com/$directory/cover.webp"
                         } else {
                             audioUrl = episodeDC.audioFilePath ?: return@IconButton
