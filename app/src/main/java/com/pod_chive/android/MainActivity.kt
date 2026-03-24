@@ -70,7 +70,6 @@ class MainActivity : ComponentActivity() {
 
 
 
-
         setContent {
             if (ActivityCompat.checkSelfPermission(
                     LocalContext.current,

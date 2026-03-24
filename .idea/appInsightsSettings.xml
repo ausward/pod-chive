@@ -37,10 +37,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.pod_chive.android" />
+                  <option name="mobileSdkAppId" value="1:1060095738697:android:df4a8a9733bf44eb461098" />
+                  <option name="projectId" value="pod-chive" />
+                  <option name="projectNumber" value="1060095738697" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
