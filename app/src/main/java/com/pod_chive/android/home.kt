@@ -232,7 +232,7 @@ fun ShowPodDetsFromMainServer(directory: String, navController: NavController) {
     val context = LocalContext.current
     var podcastData by remember { mutableStateOf<PodcastDetailResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf(false) }
 
     LaunchedEffect(directory) {
         try {
