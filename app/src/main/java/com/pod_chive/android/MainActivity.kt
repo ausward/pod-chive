@@ -211,15 +211,25 @@ class MainActivity : ComponentActivity() {
                                         temp?.photoUrl
                                     )
                                     tempOBj.feedLink = temp?.feedLink
-                                    PlayPod(false,navController, tempOBj)
+                                    if (temp?.title != "" && temp?.title != null) {
+                                        PlayPod(false, navController, tempOBj)
+                                    } else {
+                                        val emptyItem = Episode(
+                                            "Nothing In Queue",
+                                            "Please add an episode to the queue or find something to play",
+                                            "https://pod-chive.com/nothingtoplay.mp3",
+                                            "",
+                                            "Hey, you, you an't got nothing in the queue, there's nothing for me to play, please find something to play. I am so bored playing nothing ",
+                                            "Pod-chive",
+                                            "https://pod-chive.com/nothingtoplay.webp",
+                                        )
+                                        emptyItem.AudioUrl = "https://pod-chive.com/nothingtoplay.mp3"
 
-                                }else{
-                                    val emptyItem = Episode("Nothing In Queue","Please add an episode to the queue or find something to play", "https://pod-chive.com/nothingtoplay.mp3", "",
-                                        "Hey, you, you an't got nothing in the queue, there's nothing for me to play, please find something to play. I am so bored playing nothing ", "Pod-chive", "https://pod-chive.com/nothingtoplay.webp")
-                                    PlayPod(false,navController, emptyItem)
+
+
+                                        PlayPod(false, navController, emptyItem, true)
+                                    }
                                 }
-
-
                             }
                             composable<playEpisode>(typeMap = mapOf(typeOf<Episode?>() to EpisodeNavType)
                             ) {

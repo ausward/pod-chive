@@ -93,6 +93,7 @@ fun PlayPod(
     NEW_POD: Boolean = false,
     navController: NavController,
     episodeOBJ: Episode,
+    PlayPassed: Boolean = false
 
 ) {
 
@@ -126,6 +127,28 @@ fun PlayPod(
             try {
                 val pc = controllerFuture.get()
                 controller = pc
+
+                if (PlayPassed){
+                    val topItem = episodeOBJ
+                    val mediaItem = MediaItem.Builder()
+                        .setMediaId(topItem.AudioUrl?:"")
+                        .setUri(topItem.AudioUrl!!.toUri())
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setTitle(topItem.EpisodeName)
+                                .setArtist(topItem.Creator)
+                                .setArtworkUri(topItem.PhotoUrl!!.toUri())
+                                .build()
+                        )
+                        .build()
+
+                    Log.e("MediaLangth", mediaItem.mediaMetadata.toString())
+                    pc.setMediaItem(mediaItem)
+                    pc.prepare()
+                    pc.play()
+
+                }
+
                 if (controller?.isPlaying != true) {
                 // If no audio URL was provided, load and play the top item from the queue
     //            if (audioUrl.isNullOrBlank() || audioUrl == " ") {
@@ -146,6 +169,7 @@ fun PlayPod(
                             )
                             .build()
 
+                        Log.e("MediaLangth", mediaItem.mediaMetadata.toString())
                         pc.setMediaItem(mediaItem)
                         pc.prepare()
                         pc.play()
