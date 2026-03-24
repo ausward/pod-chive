@@ -16,4 +16,4 @@ local.properties
 *.jks
 
 
-google-services.json
+*google-services.json
