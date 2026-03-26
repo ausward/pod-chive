@@ -1,6 +1,8 @@
 package com.pod_chive.android.ui.components
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,10 +55,13 @@ import com.pod_chive.android.api.EpisodeDC
 import com.pod_chive.android.database.FavoritePodcast
 import com.pod_chive.android.database.FavoritePodcastRepository
 import com.pod_chive.android.model.PodcastShow
+import com.pod_chive.android.notif.NotificationPermissionHandler
+import com.pod_chive.android.notif.PodchiveNotificationManager
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+
 
 @OptIn(ExperimentalGlideComposeApi::class, DelicateCoroutinesApi::class)
 @Composable
@@ -73,6 +79,8 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
     val minImageSize = 80f
     val currentImageSize = (maxImageSize - (scrollState.value / 2))
         .coerceAtLeast(minImageSize).dp
+
+    val notificationManager = PodchiveNotificationManager(LocalContext.current)
 
     LaunchedEffect(Unit) {
         GlobalScope.launch(Dispatchers.IO) {
@@ -94,7 +102,7 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
             onDismissRequest = { showDialog = false },
             confirmButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("Close")
+                    Text(stringResource(R.string.close))
                 }
             },
             title = {
@@ -102,7 +110,7 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
             },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    HtmlText(html =podcastData?.showDescription ?: "No description available.")
+                    HtmlText(html = podcastData?.showDescription ?: stringResource(R.string.no_description))
                 }
 
             }
@@ -126,7 +134,7 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
 
                 GlideImage(
                     model = podcastData?.Cover_Image,
-                    contentDescription = "Cover",
+                    contentDescription = stringResource(R.string.cover),
                     requestBuilderTransform = { request ->
                         request
                             .override(
@@ -195,7 +203,7 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
             IconButton(onClick = { navController.popBackStack() }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.back),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -216,10 +224,16 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
             IconButton(onClick = { showDialog = true }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Help,
-                    contentDescription = "More info",
+                    contentDescription = stringResource(R.string.more_info),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
+            if (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationManager.canPostNotifications()
+                } else {
+                    false
+                }
+            ) {
             if (isFavorite) {
                 IconButton(
                     onClick = {
@@ -229,12 +243,14 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
                             val favorite = repository.getFavoriteByFeedLink(podcastData?.PodcastUrl)
                             Log.e("FAV", "Favorite: $favorite")
                             if (favorite?.notification == false) {
-                                repository.addNotification(FavoritePodcast(
-                                    feedLink = podcastData?.PodcastUrl ?: "",
-                                    imageLocation = podcastData?.Cover_Image ?: "",
-                                    description = podcastData?.showDescription ?: "",
-                                    title = podcastData?.PodcastName ?: "",
-                                ))
+                                repository.addNotification(
+                                    FavoritePodcast(
+                                        feedLink = podcastData?.PodcastUrl ?: "",
+                                        imageLocation = podcastData?.Cover_Image ?: "",
+                                        description = podcastData?.showDescription ?: "",
+                                        title = podcastData?.PodcastName ?: "",
+                                    )
+                                )
                             } else {
                                 if (favorite != null) {
                                     repository.removeNotification(favorite)
@@ -242,23 +258,27 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
                             }
                         }
 
-                    }){
+                    }) {
+
+
                     if (IsNotificationEnabled) {
                         Icon(
                             imageVector = Icons.Filled.NotificationsActive,
-                            contentDescription = "Remove Notification",
+                            contentDescription = stringResource(R.string.remove_notification),
                             tint = MaterialTheme.colorScheme.error
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Filled.NotificationsOff,
-                            contentDescription = "Add Notification",
+                            contentDescription = stringResource(R.string.add_notification),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
                 }
 
+
+            }
             }
             IconButton(onClick = {
                     val repository = FavoritePodcastRepository(context)
@@ -285,12 +305,18 @@ fun ShowPodPage(podcastData: PodcastShow?, epData: List<EpisodeDC>?, navControll
                             )
 
                         }
+
                         isFavorite = !isFavorite
                     }
                 }) {
+                NotificationPermissionHandler()
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                        contentDescription = if (isFavorite) {
+                            stringResource(R.string.remove_from_favorites)
+                        } else {
+                            stringResource(R.string.add_to_favorites)
+                        },
                         tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                     )
                 }

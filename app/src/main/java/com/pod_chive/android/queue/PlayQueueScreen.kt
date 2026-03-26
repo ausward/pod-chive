@@ -1,5 +1,6 @@
 package com.pod_chive.android.queue
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -47,12 +48,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import androidx.media3.common.Player
 import com.pod_chive.android.model.Episode
 import java.lang.Thread.sleep
 import java.util.UUID
 
+@SuppressLint("LocalContextGetResourceValueCall")
 @OptIn(ExperimentalGlideComposeApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PlayQueueScreen(navController: NavController) {
@@ -104,13 +107,13 @@ fun PlayQueueScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Play Queue (${queueItems.size})")
+                    Text(stringResource(R.string.play_queue_with_count, queueItems.size))
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 },
@@ -123,7 +126,7 @@ fun PlayQueueScreen(navController: NavController) {
                         }) {
                             Icon(
                                 imageVector = Icons.Filled.Clear,
-                                contentDescription = "Clear Queue"
+                                contentDescription = stringResource(R.string.clear_queue)
                             )
                         }
                     }
@@ -150,12 +153,12 @@ fun PlayQueueScreen(navController: NavController) {
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Queue is empty",
+                        text = stringResource(R.string.queue_is_empty),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Add episodes to start playing",
+                        text = stringResource(R.string.queue_is_empty_message),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -237,9 +240,13 @@ fun PlayQueueScreen(navController: NavController) {
                                 )
                                 .build()
 
-                            Toast.makeText(context, "Playing: ${item.EpisodeName}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.playing_episode_format, item.EpisodeName ?: ""),
+                                Toast.LENGTH_SHORT
+                            ).show()
                             val timetoSeek = playbackStateManager.getPlaybackState(item.AudioUrl?:"")?.currentPosition
-                            Log.e("TIME TO SEEK", timetoSeek.toString() ?: "")
+//                            Log.e("TIME TO SEEK", timetoSeek.toString() ?: "")
                             player.setMediaItem(mediaItem)
                             player.prepare()
                             player.play()
@@ -343,7 +350,7 @@ fun QueueItemRow(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.KeyboardArrowUp,
-                            contentDescription = "Move up (hold for top)",
+                            contentDescription = stringResource(R.string.move_up),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(6.dp)
                         )
@@ -359,7 +366,7 @@ fun QueueItemRow(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.KeyboardArrowDown,
-                            contentDescription = "Move down (hold for bottom)",
+                            contentDescription = stringResource(R.string.move_down),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(6.dp)
                         )
@@ -369,7 +376,7 @@ fun QueueItemRow(
 
             GlideImage(
                 model = item.PhotoUrl,
-                contentDescription = "Episode artwork",
+                contentDescription = stringResource(R.string.Podcast_artwork),
                 modifier = Modifier
                     .size(60.dp)
                     .clip(MaterialTheme.shapes.small),
@@ -424,7 +431,7 @@ fun QueueItemRow(
             if (isCurrentlyPlaying) {
                 Icon(
                     imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = "Currently playing",
+                    contentDescription = stringResource( R.string.currently_playing),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
@@ -434,7 +441,7 @@ fun QueueItemRow(
             IconButton(onClick = onRemove) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
-                    contentDescription = "Remove from queue",
+                    contentDescription = stringResource( R.string.remove_from_queue),
                     tint = MaterialTheme.colorScheme.error
                 )
             }
@@ -477,7 +484,7 @@ fun PlayBackProgressVis(playbackState: PlaybackState?) {
         }
     } else if (playbackState?.duration == playbackState?.currentPosition) {
         Text(
-            text = "completed",
+            text = stringResource(R.string.completed),
             fontStyle = MaterialTheme.typography.bodySmall.fontStyle,
             color = MaterialTheme.colorScheme.tertiary,
             fontSize = 11.sp

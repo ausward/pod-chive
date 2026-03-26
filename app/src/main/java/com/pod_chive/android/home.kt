@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -115,7 +116,7 @@ fun HomePage(navController: NavController ) {
             // This centers everything inside the row vertically
             verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Welcome to Podchive!",
+                text = stringResource(R.string.Welcome_to_pod_chive),
 //                modifier = Modifier.padding(16.dp),
                 style = MaterialTheme.typography.headlineMedium
             )
@@ -123,7 +124,7 @@ fun HomePage(navController: NavController ) {
         IconButton(onClick = { grid = !grid }) {
             Icon(
                 imageVector = if (grid) Icons.Filled.ViewDay else Icons.Filled.ViewComfyAlt,
-                contentDescription = "Toggle View Layout",
+                contentDescription = stringResource(id = R.string.Toggle_layout),
                 tint = Color.DarkGray
             )
         }}
@@ -170,7 +171,7 @@ fun MainPodListExpanderHor(podcast: homeItem, onItemClick: () -> Unit ){
     Row(modifier = Modifier.padding(vertical = 2.dp).clip(MaterialTheme.shapes.medium).clickable{onItemClick()}) {
         GlideImage(
             model = photoURL,
-            contentDescription = "Podcast Album Cover",
+            contentDescription = stringResource( R.string.Podcast_artwork),
             modifier = Modifier.width(80.dp).clip(MaterialTheme.shapes.medium)
                 .height(80.dp).align(Alignment.CenterVertically),
             loading = placeholder(R.drawable.confused_chive),
@@ -203,7 +204,7 @@ fun MainPodGridItem(podcast: homeItem, onItemClick: () -> Unit) {
         Column(modifier = Modifier.padding(8.dp).clickable{onItemClick()} ){
             GlideImage(
                 model = photoURL,
-                contentDescription = "Cover",
+                contentDescription = stringResource( R.string.Podcast_artwork),
                 modifier = Modifier.aspectRatio(1f).clip(MaterialTheme.shapes.medium),
                 loading = placeholder(R.drawable.confused_chive)
             )
@@ -302,7 +303,7 @@ fun EpisodeRow(
     state = stateManager.getPlaybackState(audioUrl) ?: com.pod_chive.android.playback.PlaybackState(
         audioUrl = audioUrl,
         title = episodeDC.title ?: "",
-        creator = episodeDC.creator ?: "Unknown",
+        creator = episodeDC.creator ?: stringResource(R.string.unknown),
         photoUrl = photoUrl,
         currentPosition = 0,
         duration = 0,
@@ -336,7 +337,7 @@ fun EpisodeRow(
             onDismissRequest = { showDialog = false },
             confirmButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("Close")
+                    Text(stringResource(R.string.close))
                 }
             },
             title = {
@@ -344,7 +345,7 @@ fun EpisodeRow(
             },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    HtmlText(html = episodeDC.description ?: "No description available.")
+                    HtmlText(html = episodeDC.description ?: stringResource(R.string.no_description))
                 }
 
             }
@@ -359,12 +360,8 @@ fun EpisodeRow(
         episodeDC.PhotoUrl = photoUrl
         episodeDC.feedLink = feedURL
 
-        Log.d("HOME470", episodeDC.toString())
-
-
         queueManager.addToQueue(episodeDC)
-        Log.d("QUEUE", "Added to queue: ${episodeDC.title}")
-        android.widget.Toast.makeText(context, "Added to queue", android.widget.Toast.LENGTH_SHORT)
+        android.widget.Toast.makeText(context, context.getString(R.string.added_to_queue), android.widget.Toast.LENGTH_SHORT)
             .show()
     }
 
@@ -379,7 +376,7 @@ fun EpisodeRow(
                     .setMediaMetadata(
                         MediaMetadata.Builder()
                             .setTitle(episodeDC.EpisodeName ?: "")
-                            .setArtist(episodeDC.Creator ?: "Unknown")
+                                .setArtist(episodeDC.Creator ?: context.getString(R.string.unknown))
                             .setArtworkUri(photoUrl.toUri())
                             .build()
                     )
@@ -398,11 +395,9 @@ fun EpisodeRow(
 
                 queueManager.addToQueue(episodeDC)
                 queueManager.moveToTop(com.pod_chive.android.queue.PlayQueueManager.generateId(audioUrl))
-                Log.d("QUEUE", "Added and moved to top: ${episodeDC.EpisodeName}")
 
 
 
-                Log.d("HOME546", episodeDC.MasterToString())
                 navController.navigate(episodeDC.toPlayEpisode())
                 //navController.navigate("playpod")
             }
@@ -426,7 +421,7 @@ fun EpisodeRow(
             if (showPodcastImage) {
                 GlideImage(
                     model = photoUrl,
-                    contentDescription = "Cover",
+                    contentDescription = stringResource(R.string.Podcast_artwork),
                     modifier = Modifier
                         .size(48.dp)
                         .clip(MaterialTheme.shapes.medium),
@@ -481,7 +476,7 @@ fun EpisodeRow(
 //                    (state.currentPosition.toFloat() / state.duration.toFloat() * 100f)
                     if (state.currentPosition >= state.duration - 50) {
                         Text(
-                            text = "Completed",
+                            text = stringResource(R.string.completed),
                             color = MaterialTheme.colorScheme.tertiary,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -516,21 +511,17 @@ fun EpisodeRow(
                                 episodeDC.pubDate ?: "",
                                 photoUrl
                             )
-                        Log.e("HOME500", episodeDC.feedLink.toString())
                         Temp.feedLink = episodeDC.feedLink
                         Temp.TranscriptUrl = episodeDC.transcript
                         Temp.Creator = episodeDC.creator
                         Temp.Description = episodeDC.description
-
-
-                        Log.e("episodeRowPlay", Temp.toString())
                         playEpisode(Temp)
                     },
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = "Play episode",
+                        contentDescription = stringResource(R.string.play_ep),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(40.dp)
                     )
@@ -545,7 +536,7 @@ fun EpisodeRow(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                        contentDescription = "Add to queue",
+                        contentDescription = stringResource(R.string.add_to_queue),
                         tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(35.dp)
                     )

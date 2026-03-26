@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,7 +101,7 @@ fun PodSearchBar(onSearch: (String) -> Unit) {
             singleLine = true,
             shape = RoundedCornerShape(50),
             maxLines = 1,
-            placeholder = { Text("Keyword or RSS URL")
+            placeholder = { Text(stringResource(R.string.keyword_hint))
             }
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -108,7 +109,7 @@ fun PodSearchBar(onSearch: (String) -> Unit) {
             onClick = { onSearch(text) },
             shape = RoundedCornerShape(50)
         ) {
-            Icon(Icons.Default.Search, contentDescription = "Search")
+            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.SearchRouteName))
         }
     }
 }
@@ -185,7 +186,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         if (isLoading) {
             Text(
-                text = "Loading...",
+                text = stringResource(R.string.loading),
                 modifier = Modifier.padding(vertical = 8.dp),
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -193,14 +194,14 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
             when (val currentResults = searchResults) {
                 is SearchResultType.Empty -> {
                     Text(
-                        text = "Start searching or enter an RSS URL.",
+                        text = stringResource(R.string.keyword_hint),
                         modifier = Modifier.padding(vertical = 8.dp),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
                 is SearchResultType.Error -> {
                     Text(
-                        text = "Error: ${currentResults.message}",
+                        text = "${stringResource(R.string.error)}: ${currentResults.message}",
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
@@ -208,7 +209,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 is SearchResultType.Podcasts -> {
                     if (currentResults.podcasts.isEmpty()) {
                         Text(
-                            text = "No podcasts found. Try a different search term or RSS URL.",
+                            text = stringResource(R.string.no_results),
                             modifier = Modifier.padding(vertical = 8.dp),
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -223,7 +224,7 @@ fun FindPod(SearchString: String, navController: NavController) { // Added NavCo
                 is SearchResultType.RssEpisodes -> {
                     Column {
                         Text(
-                            text = "Episodes from ${currentResults.podcastSummary.PodcastName}",
+                            text = "${stringResource(R.string.ep_from)} ${currentResults.podcastSummary.PodcastName}",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
@@ -252,7 +253,7 @@ fun SearchItemView(podcast: PodcastShow, navController: NavController) {
         }) {
         GlideImage(
             model = podcast.Cover_Image,
-            contentDescription = "Podcast artwork",
+            contentDescription = stringResource(R.string.Podcast_artwork),
             modifier = Modifier
                 .width(80.dp)
                 .height(80.dp),
@@ -261,7 +262,7 @@ fun SearchItemView(podcast: PodcastShow, navController: NavController) {
 
         Column(modifier = Modifier.padding(start = 12.dp)) {
             Text(
-                text = podcast.PodcastName?:"Unknown",
+                text = podcast.PodcastName?:stringResource(R.string.unknown),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 maxLines = 2

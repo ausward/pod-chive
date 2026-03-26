@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -133,6 +134,7 @@ private fun parseEpisodeTimeMillis(pubDate: String): Long {
 @Composable
 fun EpisodesFromFavoritesScreen(navController: NavController) {
     val context = LocalContext.current
+    val unknownErrorText = stringResource(R.string.unkown_error)
     var episodes by remember { mutableStateOf<List<EpisodeWithShowData>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -220,7 +222,7 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
             }
         } catch (e: Exception) {
             if (episodes.isEmpty()) {
-                errorMessage = "Error loading episodes: ${e.message}"
+                errorMessage = e.message ?: unknownErrorText
             }
             Log.e("FavoriteEpisodes", "Error: ${e.message}", e)
         } finally {
@@ -245,13 +247,13 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                 IconButton(onClick = { navController.popBackStack() }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.back),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
             Text(
-                text = "New Episodes",
+                text = stringResource(R.string.new_eps),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 8.dp)
@@ -276,7 +278,10 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = errorMessage ?: "Unknown error",
+                        text = stringResource(
+                            R.string.error_loading_episodes,
+                            errorMessage ?: unknownErrorText
+                        ),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -289,7 +294,7 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                 ) {
                     Column (modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "No episodes found in favorite podcasts",
+                            text = stringResource(R.string.no_ep_found_in_fav),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -302,7 +307,7 @@ fun EpisodesFromFavoritesScreen(navController: NavController) {
                                 onClick = { navController.navigate("search") },
                                 modifier = Modifier.align(Alignment.Center)
                             ) {
-                                Text(text = "Explore Some Podcasts")
+                                Text(text = stringResource(R.string.explore_podcasts))
 
                             }
                         }

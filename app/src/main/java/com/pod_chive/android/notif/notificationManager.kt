@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
@@ -36,8 +37,6 @@ class PodchiveNotificationManager(private val context: Context) {
 
     companion object {
         private const val CHANNEL_ID = "favorite_episode_updates"
-        private const val CHANNEL_NAME = "Favorite podcast updates"
-        private const val CHANNEL_DESCRIPTION = "Notifications for newly released episodes"
         private const val SUMMARY_NOTIFICATION_ID = 41_001
         private const val TAG = "PodNotif"
 
@@ -51,6 +50,7 @@ class PodchiveNotificationManager(private val context: Context) {
         const val EXTRA_TRANSCRIPT_URL = "extra_transcript_url"
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun notifyNewEpisode(favorite: FavoritePodcast, episode: EpisodeDC) {
         if (!canPostNotifications()) {
@@ -83,7 +83,7 @@ class PodchiveNotificationManager(private val context: Context) {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_chive)
-            .setContentTitle("New episode from ${favorite.title}")
+            .setContentTitle(context.getString(R.string.new_episode_from, favorite.title))
             .setContentText(episode.title)
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
@@ -118,10 +118,10 @@ class PodchiveNotificationManager(private val context: Context) {
     private fun ensureChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            CHANNEL_NAME,
+            context.getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = CHANNEL_DESCRIPTION
+            description = context.getString(R.string.notification_channel_description)
         }
 
         val systemManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -129,7 +129,8 @@ class PodchiveNotificationManager(private val context: Context) {
         Log.d(TAG, "Notification channel ensured: $CHANNEL_ID")
     }
 
-    private fun canPostNotifications(): Boolean {
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    public fun canPostNotifications(): Boolean {
         val granted = ActivityCompat.checkSelfPermission(
             context,
             Manifest.permission.POST_NOTIFICATIONS
@@ -153,52 +154,18 @@ fun NotificationPermissionHandler() {
             permission = Manifest.permission.POST_NOTIFICATIONS
         )
 
+        Log.e("NotificationPermissionHandler", "Permission state: ${permissionState.status}")
         if (!permissionState.status.isGranted) {
-            if (permissionState.status.shouldShowRationale) {
-                // Show a custom UI explaining WHY you need notifications
-                // before calling launchPermissionRequest()
-                RationaleDialog(
-                    onConfirm = { permissionState.launchPermissionRequest() },
-                    onDismiss = { }
-                )
-            } else {
                 // Request the permission directly
                 SideEffect {
                     permissionState.launchPermissionRequest()
                 }
+        }
+        if (permissionState.status.shouldShowRationale){
+            SideEffect {
+                permissionState.launchPermissionRequest()
             }
         }
-    }
-}
 
-@Composable
-fun RationaleDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(text = "Stay in the loop")
-        },
-        text = {
-            Text(
-                "We use notifications to keep you updated on your task progress " +
-                        "and send important alerts. Would you like to turn them on?"
-            )
-        },
-        icon = {
-            Icon(Icons.Default.Notifications, contentDescription = null)
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Allow")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Not Now")
-            }
-        }
-    )
+    }
 }

@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.HorizontalDivider
@@ -19,9 +21,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.pod_chive.android.HtmlText
+import com.pod_chive.android.R
 import com.pod_chive.android.model.Episode
 import kotlinx.serialization.Serializable
 import java.net.URL
@@ -61,7 +65,7 @@ fun Details(info: Information, nav: NavController){
                     IconButton(onClick = { nav.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -80,7 +84,7 @@ fun Details(info: Information, nav: NavController){
                 Box(contentAlignment = Alignment.Center) {
 
                 }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                Column (modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = info.Creator ?: "",
                         color = MaterialTheme.colorScheme.secondary,
@@ -88,9 +92,11 @@ fun Details(info: Information, nav: NavController){
 
                     )
 
+                    Spacer(modifier = Modifier.width(10.dp))
+
 
                     Text(
-                        text = info.PublishDate ?: "",
+                        text = "${stringResource(R.string.pubdate)}: ${info.PublishDate}" ?: "",
                         color = MaterialTheme.colorScheme.tertiary,
                         style = MaterialTheme.typography.titleSmall,
                     )
@@ -99,7 +105,7 @@ fun Details(info: Information, nav: NavController){
             }
             HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.tertiary)
             Text(
-                    text= "Description",
+                    text= stringResource(R.string.desc),
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleLarge,
             )
@@ -119,7 +125,7 @@ fun Details(info: Information, nav: NavController){
             if (TranscriptData != null && TranscriptData != "") {
                 HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.tertiary)
                 Text(
-                    text = "Transcript",
+                    text = stringResource(R.string.transcript),
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.titleLarge,
                 )

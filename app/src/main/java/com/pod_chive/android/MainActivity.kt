@@ -31,6 +31,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -95,7 +96,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 var selectedItem by rememberSaveable { mutableIntStateOf(0) }
-                val items = listOf("Home", "Search", "Play", "Favorites")
+                val items = listOf(stringResource(R.string.HomeRouteName), stringResource(R.string.SearchRouteName), stringResource(R.string.PlayRouteName), stringResource(R.string.FavoritesRouteName))
                 val routes = listOf("home", "search", "playpod", "favorites") // Match these to your NavHost routes
                 val icons = listOf(Icons.Filled.Home, Icons.Filled.Search, Icons.Filled.PlayArrow, Icons.Filled.Favorite)
                 val BackEntryAsState = navController.currentBackStackEntryAsState()
@@ -214,12 +215,12 @@ class MainActivity : ComponentActivity() {
                                         PlayPod(false, navController, tempOBj)
                                     } else {
                                         val emptyItem = Episode(
-                                            "Nothing In Queue",
-                                            "Please add an episode to the queue or find something to play",
+                                            stringResource(R.string.nothing_in_queue_title),
+                                            stringResource(R.string.nothing_in_queue_message),
                                             "https://pod-chive.com/nothingtoplay.mp3",
                                             "",
-                                            "Hey, you, you an't got nothing in the queue, there's nothing for me to play, please find something to play. I am so bored playing nothing ",
-                                            "Pod-chive",
+                                            stringResource(R.string.nothing_in_the_queue_trans),
+                                            stringResource(R.string.app_name),
                                             "https://pod-chive.com/nothingtoplay.webp",
                                         )
                                         emptyItem.AudioUrl = "https://pod-chive.com/nothingtoplay.mp3"

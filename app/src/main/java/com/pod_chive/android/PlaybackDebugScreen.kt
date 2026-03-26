@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,10 +61,10 @@ fun PlaybackDebugScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Playback Debug") },
+                title = { Text(stringResource(R.string.playback_debug_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -73,7 +74,7 @@ fun PlaybackDebugScreen(navController: NavController) {
                             playbackStates = emptyMap()
                         }
                     ) {
-                        Text("Clear All")
+                        Text(stringResource(R.string.clear_all))
                     }
                 }
             )
@@ -86,7 +87,7 @@ fun PlaybackDebugScreen(navController: NavController) {
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("No playback states saved yet", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.no_playback_states_saved_yet), style = MaterialTheme.typography.bodyLarge)
             }
         } else {
             LazyColumn(
@@ -146,13 +147,18 @@ fun PlaybackStateItem(
                 )
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error)
             }
         }
 
         // Progress Info
         Text(
-            text = "Progress: ${formatDuration(state.currentPosition)} / ${formatDuration(state.duration)} ($progressPercent%)",
+            text = stringResource(
+                R.string.playback_progress_format,
+                formatDuration(state.currentPosition),
+                formatDuration(state.duration),
+                progressPercent
+            ),
             style = MaterialTheme.typography.labelSmall,
             fontSize = 11.sp,
             modifier = Modifier.padding(top = 8.dp)
@@ -160,7 +166,7 @@ fun PlaybackStateItem(
 
         // Last Played
         Text(
-            text = "Last played: $lastPlayedDate",
+            text = stringResource(R.string.last_played_format, lastPlayedDate),
             style = MaterialTheme.typography.labelSmall,
             fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -168,7 +174,7 @@ fun PlaybackStateItem(
 
         // URL (for debugging)
         Text(
-            text = "URL: ${state.audioUrl.take(50)}...",
+            text = stringResource(R.string.url_preview_format, state.audioUrl.take(50)),
             style = MaterialTheme.typography.labelSmall,
             fontSize = 9.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

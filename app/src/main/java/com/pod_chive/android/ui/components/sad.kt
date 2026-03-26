@@ -28,9 +28,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.pod_chive.android.R
 import androidx.wear.compose.material3.Text
 
 @Composable
@@ -58,16 +59,13 @@ fun SadChive(
 
     Column(modifier = Modifier.fillMaxWidth().fillMaxHeight().padding(50.dp),) {
 
-        val context = LocalContext.current
-
-
         Text(
-            text = "There has been an error!",
+            text = stringResource(R.string.sad_chive_error_title),
             color = Color.Red,
             style = MaterialTheme.typography.titleLarge,
         )
         Text(
-            text = "Please go Back.",
+            text = stringResource(R.string.sad_chive_error_go_back),
             color = Color.Red,
             style = MaterialTheme.typography.titleLarge,
         )
@@ -77,7 +75,7 @@ fun SadChive(
         }) {
             Icon(
                 imageVector = Icons.Default.Home,
-                contentDescription = "Go to Main Activity",
+                contentDescription = stringResource(R.string.go_to_main_activity),
                 tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.align(Alignment.CenterHorizontally).size(250.dp)
             )

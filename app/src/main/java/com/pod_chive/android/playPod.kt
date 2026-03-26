@@ -55,6 +55,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -142,7 +143,6 @@ fun PlayPod(
                         )
                         .build()
 
-                    Log.e("MediaLangth", mediaItem.mediaMetadata.toString())
                     pc.setMediaItem(mediaItem)
                     pc.prepare()
                     pc.play()
@@ -267,7 +267,7 @@ fun MiniPlayerControls() {
                 IconButton(onClick = { mediaController?.seekBack() }) {
                     Icon(
                         painter = painterResource(R.drawable.replay_10_24px),
-                        contentDescription = "Rewind 10 seconds",
+                        contentDescription = stringResource(R.string.rewind_10_sec),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -309,14 +309,14 @@ fun MiniPlayerControls() {
                 ) {
                     Icon(
                         painter = painterResource(if (isPlaying) R.drawable.outline_pause_24 else R.drawable.play_arrow_24px),
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 IconButton(onClick = { mediaController?.seekForward() }) {
                     Icon(
                         painter = painterResource(R.drawable.outline_forward_30_24),
-                        contentDescription = "Forward 30 seconds",
+                        contentDescription = stringResource(R.string.forward_30_sec),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -348,6 +348,7 @@ fun AudioPlayer(
 //    Log.e("DATE" , pubdate.toString())
 
     val context = LocalContext.current
+    val unknownText = stringResource(R.string.unknown)
     val scope = rememberCoroutineScope()
     var mediaController by remember { mutableStateOf<MediaController?>(null) }
 
@@ -381,58 +382,39 @@ fun AudioPlayer(
                 if (New_POD) {
                     // Try to restore playback position from saved state
                     val playbackStateManager = PlaybackStateManager(context)
-                    Log.d(
-                        "PLAYBACK",
-                        "AudioPlayer: Looking for saved state for URL: ${episodeOBJ.AudioUrl}"
-                    )
-
                     var savedState = playbackStateManager.getPlaybackState(episodeOBJ.AudioUrl!!)
 
                     // If not found and URL contains encoded characters, try to find a match
                     if (savedState == null && episodeOBJ.AudioUrl!!.contains("%")) {
-                        Log.d("PLAYBACK", "URL is encoded, searching for decoded match...")
                         val decodedUrl = try {
                             Uri.decode(episodeOBJ.AudioUrl)
                         } catch (e: Exception) {
-                            Log.d("PLAYBACK", "Error decoding URL: ${e.message}")
                             episodeOBJ.AudioUrl
                         }
                         savedState = playbackStateManager.getPlaybackState(decodedUrl!!)
                         if (savedState != null) {
-                            Log.d("PLAYBACK", "Found state using decoded URL")
                         }
                     }
 
                     // If still not found, search all states for matching audio URL
                     if (savedState == null) {
-                        Log.d("PLAYBACK", "Searching all saved states for any match...")
                         val allStates = playbackStateManager.getAllPlaybackStates()
                         savedState = allStates.values.firstOrNull {
                             it.audioUrl == episodeOBJ.AudioUrl ||
                                     Uri.decode(it.audioUrl) == episodeOBJ.AudioUrl ||
                                     Uri.decode(it.audioUrl) == Uri.decode(episodeOBJ.AudioUrl)
                         }
-                        if (savedState != null) {
-                            Log.d("PLAYBACK", "Found matching state in all states")
-                        }
+
                     }
 
                     if (savedState != null) {
-                        Log.d(
-                            "PLAYBACK",
-                            "Found saved state: ${savedState.title} at ${savedState.currentPosition}ms/${savedState.duration}ms"
-                        )
+
                         // Only restore if the saved position is reasonable (not at the very end)
                         if (savedState.currentPosition > 0 && savedState.currentPosition < savedState.duration * 0.95) {
-                            Log.e("STATECONTROLLER", controller.currentMediaItem?.mediaId ?: "")
-                            Log.e("STATESAVED", savedState.audioUrl ?: "")
 
         //                    if (savedState.currentPosition > controller.currentPosition) {
                                 controller.seekTo(savedState.currentPosition)
-                                Log.d(
-                                    "PLAYBACK",
-                                    "✓ Restored playback position: ${savedState.currentPosition}ms / ${savedState.duration}ms"
-                                )
+
         //                    }
                         } else {
                             Log.d(
@@ -471,8 +453,8 @@ fun AudioPlayer(
                 currentMediaItem?.let { mediaItem ->
                     val state = PlaybackState(
                         audioUrl = mediaItem.mediaId,
-                        title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
-                        creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
+                        title = mediaItem.mediaMetadata.title?.toString() ?: unknownText,
+                        creator = mediaItem.mediaMetadata.artist?.toString() ?: unknownText,
                         photoUrl = mediaItem.mediaMetadata.artworkUri?.toString() ?: "",
                         currentPosition = controller.currentPosition.coerceAtLeast(0),
                         duration = controller.duration.coerceAtLeast(0),
@@ -504,8 +486,8 @@ fun AudioPlayer(
                 try {
                     val state = PlaybackState(
                         audioUrl = mediaItem.mediaId,
-                        title = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
-                        creator = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
+                        title = mediaItem.mediaMetadata.title?.toString() ?: unknownText,
+                        creator = mediaItem.mediaMetadata.artist?.toString() ?: unknownText,
                         photoUrl = mediaItem.mediaMetadata.artworkUri?.toString() ?: "",
                         currentPosition = controller.currentPosition.coerceAtLeast(0),
                         duration = controller.duration.coerceAtLeast(0),
@@ -548,7 +530,7 @@ fun AudioPlayer(
             }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Sharp.PlaylistPlay,
-                    contentDescription = "View Queue",
+                    contentDescription = stringResource(R.string.View_queue),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(32.dp)
                 )
@@ -561,7 +543,7 @@ fun AudioPlayer(
                 }
             ) { Icon(
                 imageVector = Icons.AutoMirrored.Sharp.Help,
-                contentDescription = "View Details")}
+                contentDescription = stringResource(R.string.View_Details))}
         }
         // --- Artwork ---
         Box(
@@ -571,7 +553,7 @@ fun AudioPlayer(
         ) {
             GlideImage(
                 model = episodeOBJ.PhotoUrl,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.Podcast_artwork),
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(16.dp)),
@@ -585,7 +567,7 @@ fun AudioPlayer(
 
         // --- Info ---
         Text(
-            text = episodeOBJ.EpisodeName?:"Hydration Error",
+            text = episodeOBJ.EpisodeName ?: stringResource(R.string.hydration_error),
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
@@ -594,7 +576,7 @@ fun AudioPlayer(
             modifier = Modifier.padding(horizontal = 24.dp)
         )
         Text(
-            text = episodeOBJ.Creator?:"Unknown Show Name",
+            text = episodeOBJ.Creator ?: stringResource(R.string.unknown_show_name),
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 4.dp, start = 24.dp, end = 24.dp)
@@ -775,7 +757,7 @@ fun AudioPlayer(
                         .padding(horizontal = 16.dp)
                         .clickable { mediaController?.setPlaybackSpeed(1.0f) }
                 ) {
-                    Text("SPEED", color = MaterialTheme.colorScheme.onTertiary, style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.speed), color = MaterialTheme.colorScheme.onTertiary, style = MaterialTheme.typography.labelSmall)
                     Text(String.format(Locale.US, "%.2fx", playbackSpeed), color = Color.White, fontWeight = FontWeight.Bold)
                 }
 

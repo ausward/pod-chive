@@ -59,6 +59,7 @@ import com.pod_chive.android.ui.components.LoadingIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
+import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalGlideComposeApi::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -78,9 +79,7 @@ fun FavoritesScreen(navController: NavController) {
             repository.getAllFavorites()
 
         }
-        for (favorite in favorites){
-            Log.e("FavoritesScreen", "Favorite: $favorite")
-        }
+
         isLoading = false
     }
 
@@ -100,12 +99,12 @@ fun FavoritesScreen(navController: NavController) {
             IconButton(onClick = { navController.popBackStack() }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription =stringResource( R.string.back),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
             Text(
-                text = "Favorite Podcasts",
+                text = stringResource(R.string.fav_podcasts),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 8.dp)
@@ -114,14 +113,14 @@ fun FavoritesScreen(navController: NavController) {
             IconButton(onClick = { gridViewOverride = !(gridViewOverride ?: isWideDisplay) }) {
                 Icon(
                     imageVector = if (isGridView) Icons.Filled.ViewAgenda else Icons.Filled.GridView,
-                    contentDescription = if (isGridView) "Switch to list view" else "Switch to grid view",
+                    contentDescription = stringResource( R.string.Toggle_layout),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
             IconButton(onClick = { navController.navigate("favorite_episodes") }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.List,
-                    contentDescription = "View all episodes",
+                    contentDescription = stringResource( R.string.view_all_eps),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -148,7 +147,7 @@ fun FavoritesScreen(navController: NavController) {
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "No favorite podcasts yet",
+                            text = stringResource(R.string.no_fav_pods),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -211,7 +210,6 @@ fun FavoritesScreen(navController: NavController) {
 private fun navigateToFavorite(navController: NavController, favorite: FavoritePodcast) {
     if (!favorite.feedLink.contains("pod-chive.com")) {
         try {
-            Log.e("FavoritesScreen", "Navigating to RSS feed: ${favorite.feedLink}")
             navController.navigate(
                 PodcastShow(
                     favorite.title,
@@ -247,7 +245,7 @@ fun FavoritePodcastItem(
     ) {
         GlideImage(
             model = favorite.imageLocation,
-            contentDescription = "Podcast artwork",
+            contentDescription = stringResource(R.string.Podcast_artwork),
             modifier = Modifier
                 .width(80.dp)
                 .height(80.dp)
@@ -296,7 +294,7 @@ fun FavoritePodcastGridItem(
         Column(modifier = Modifier.padding(8.dp).clickable{navigateToFavorite(navController, favorite)} ){
             GlideImage(
                 model = favorite.imageLocation,
-                contentDescription = "Cover",
+                contentDescription = stringResource( R.string.Podcast_artwork),
                 modifier = Modifier.aspectRatio(1f).clip(MaterialTheme.shapes.medium),
                 loading = placeholder(R.mipmap.shrug)
             )
