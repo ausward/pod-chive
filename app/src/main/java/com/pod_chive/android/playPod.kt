@@ -172,7 +172,7 @@ fun PlayPod(
                         Log.e("MediaLangth", mediaItem.mediaMetadata.toString())
                         pc.setMediaItem(mediaItem)
                         pc.prepare()
-                        pc.play()
+                        pc.pause()
 
                         Log.d("PLAYPLAY", "Playing top queue item: ${topItem.EpisodeName}")
                     } else {
@@ -389,6 +389,7 @@ fun AudioPlayer(
                         val decodedUrl = try {
                             Uri.decode(episodeOBJ.AudioUrl)
                         } catch (e: Exception) {
+                            Log.e("PLAYBACK", "Error decoding URL: ${e.message}");
                             episodeOBJ.AudioUrl
                         }
                         savedState = playbackStateManager.getPlaybackState(decodedUrl!!)
@@ -652,7 +653,7 @@ fun AudioPlayer(
                 modifier = Modifier.size(64.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    if (mediaController?.isLoading?:false) {
+                    if (mediaController?.isLoading?:false && mediaController?.isCommandAvailable(Player.COMMAND_PLAY_PAUSE) == false) {
                         AnimatedChive(isLoading = mediaController?.isLoading?:true)
                     } else {
                         Icon(
