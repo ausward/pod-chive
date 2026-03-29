@@ -14,7 +14,9 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import android.app.PendingIntent
 import android.util.Log
+import android.view.KeyEvent
 import androidx.media3.common.Player
+import androidx.core.content.IntentCompat
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -57,6 +59,7 @@ class PlaybackService : MediaSessionService() {
 
         val player = ExoPlayer.Builder(this)
             .setSeekForwardIncrementMs(30000)
+            .setSeekBackIncrementMs(10000)
             .build()
 
         player.setAudioAttributes(audioAttributes, true)
@@ -108,7 +111,7 @@ class PlaybackService : MediaSessionService() {
                     val duration = player.duration
                     val position = player.currentPosition
 
-                    android.util.Log.d("PLAYBACK", "Save: Checking - position: ${position}ms, duration: ${duration}ms")
+                    Log.d("PLAYBACK", "Save: Checking - position: ${position}ms, duration: ${duration}ms")
 
                     // Only save if duration has been loaded and is valid
                     if (duration > 0) {
@@ -239,6 +242,28 @@ class PlaybackService : MediaSessionService() {
                     }
                 }
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+
+            override fun onMediaButtonEvent(
+                session: MediaSession,
+                controller: MediaSession.ControllerInfo,
+                intent: Intent
+            ): Boolean {
+                val keyEvent = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+                if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+                    when (keyEvent.keyCode) {
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            session.player.seekForward()
+                            return true
+                        }
+
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                            session.player.seekBack()
+                            return true
+                        }
+                    }
+                }
+                return super.onMediaButtonEvent(session, controller, intent)
             }
         }
 
